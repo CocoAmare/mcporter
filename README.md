@@ -37,6 +37,12 @@ await runtime.close();
 
 Prefer `createRuntime` when you plan to issue multiple calls—the runtime caches connections, handles OAuth refreshes, and closes transports when you call `runtime.close()`.
 
+An end-to-end example lives in `examples/context7-headlines.ts`; it resolves a library via Context7, fetches documentation, and prints the markdown headings. Run it with:
+
+```
+pnpm exec tsx examples/context7-headlines.ts
+```
+
 Need a quick, single invocation?
 
 ```ts
@@ -63,6 +69,12 @@ pnpm mcp:list                                 # alias for mcp-runtime list
 pnpm mcp:call chrome-devtools.getTabs --tail-log
 ```
 
+`pnpm mcp:list` respects `MCP_LIST_TIMEOUT` (milliseconds, default `60000`). Export a higher value when you need to inspect slow-starting servers:
+
+```
+MCP_LIST_TIMEOUT=120000 pnpm mcp:list vercel
+```
+
 Common flags:
 
 | Flag | Description |
@@ -80,6 +92,16 @@ When a server entry declares `"auth": "oauth"`, the CLI/runtime will:
 3. Exchange the resulting code and persist refreshed tokens under `~/.mcp-runtime/<server>/`.
 
 To reset credentials, delete that directory and rerun the command—`mcp-runtime` will trigger a fresh login.
+
+## Composable Workflows
+
+The package exports a thin runtime that lets you compose multiple MCP calls and post-process the results entirely in TypeScript. The example in `examples/context7-headlines.ts` demonstrates how to:
+
+1. Resolve a library ID with `context7.resolve-library-id`
+2. Fetch the docs via `context7.get-library-docs`
+3. Derive a summary (markdown headings) locally
+
+Use the pattern to build richer automations—batch fetch docs, search with Context7, or pass results into another MCP server without shelling out to the CLI.
 
 ## Testing & CI
 

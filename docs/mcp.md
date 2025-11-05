@@ -40,6 +40,7 @@ The CLI respects the same conventions as the original Python wrapper:
 - `${LINEAR_API_KEY}`, `${FIRECRAWL_API_KEY}`, etc. for hosted servers.
 - `$env:VAR` to inject the raw runtime value without fallbacks.
 - `env` blocks per entry to provide default values (e.g., SigNoz URLs/tokens).
+- `MCP_LIST_TIMEOUT` controls how long `pnpm mcp:list` waits for tool metadata (default 60000 ms).
 
 ## Troubleshooting
 

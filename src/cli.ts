@@ -59,6 +59,23 @@ function extractFlags(args: string[], keys: string[]): FlagMap {
 	return flags;
 }
 
+const LIST_TIMEOUT_MS = Number.parseInt(
+	process.env.MCP_LIST_TIMEOUT ?? "60000",
+	10,
+);
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+	if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+		return promise;
+	}
+	return Promise.race([
+		promise,
+		new Promise<T>((_, reject) => {
+			setTimeout(() => reject(new Error("Timeout")), timeoutMs);
+		}),
+	]) as Promise<T>;
+}
+
 // handleList prints configured servers and optional tool metadata.
 async function handleList(
 	runtime: Awaited<ReturnType<typeof createRuntime>>,
@@ -75,21 +92,33 @@ async function handleList(
 		return;
 	}
 
-	const tools = await runtime.listTools(target, {
-		includeSchema: flags.schema,
-	});
-	if (tools.length === 0) {
-		console.log("  Tools: <none>");
-		return;
-	}
-	console.log(`- ${target}`);
-	console.log("  Tools:");
-	for (const tool of tools) {
-		const doc = tool.description ? `: ${tool.description}` : "";
-		console.log(`    - ${tool.name}${doc}`);
-		if (flags.schema && tool.inputSchema) {
-			console.log(indent(JSON.stringify(tool.inputSchema, null, 2), "      "));
+	try {
+		const tools = await withTimeout(
+			runtime.listTools(target, {
+				includeSchema: flags.schema,
+			}),
+			LIST_TIMEOUT_MS,
+		);
+		if (tools.length === 0) {
+			console.log("  Tools: <none>");
+			return;
 		}
+		console.log(`- ${target}`);
+		console.log("  Tools:");
+		for (const tool of tools) {
+			const doc = tool.description ? `: ${tool.description}` : "";
+			console.log(`    - ${tool.name}${doc}`);
+			if (flags.schema && tool.inputSchema) {
+				console.log(
+					indent(JSON.stringify(tool.inputSchema, null, 2), "      "),
+				);
+			}
+		}
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : "Failed to load tool list.";
+		console.warn(`  Tools: <timed out after ${LIST_TIMEOUT_MS}ms>`);
+		console.warn(`  Reason: ${message}`);
 	}
 }
 
