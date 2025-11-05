@@ -80,15 +80,20 @@ beforeAll(async () => {
 
 describe("generateCli", () => {
 	it("creates a standalone CLI and bundled executable", async () => {
-		const inline = JSON.stringify({
-			name: "integration",
-			description: "Test integration server",
-			command: baseUrl.toString(),
-			tokenCacheDir: path.join(tmpDir, "schema-cache"),
-		});
-		await fs.mkdir(path.join(tmpDir, "schema-cache"), { recursive: true });
-		const outputPath = path.join(tmpDir, "integration-cli.ts");
-		const exec = await import("node:child_process");
+	const inline = JSON.stringify({
+		name: "integration",
+		description: "Test integration server",
+		command: baseUrl.toString(),
+		tokenCacheDir: path.join(tmpDir, "schema-cache"),
+	});
+	await fs.mkdir(path.join(tmpDir, "schema-cache"), { recursive: true });
+	const outputPath = path.join(tmpDir, "integration-cli.ts");
+	const exec = await import("node:child_process");
+	const bunAvailable = await hasBun(exec);
+	if (!bunAvailable) {
+		console.warn("bun is not available on this runner; skipping compilation checks.");
+		return;
+	}
 		await new Promise<void>((resolve, reject) => {
 			exec.exec("pnpm build", execOptions(), (error) => {
 				if (error) {
@@ -282,4 +287,17 @@ function execOptions() {
 		env: { ...process.env, NODE_NO_WARNINGS: "1" },
 		encoding: "utf8" as const,
 	};
+}
+
+async function hasBun(exec: typeof import("node:child_process")) {
+	return await new Promise<boolean>((resolve) => {
+		exec.execFile(
+			process.env.BUN_BIN ?? "bun",
+			["--version"],
+			execOptions(),
+			(error) => {
+				resolve(!error);
+			},
+		);
+	});
 }
