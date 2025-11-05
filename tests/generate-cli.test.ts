@@ -234,6 +234,33 @@ describe("generateCli", () => {
 		};
 		expect(Object.keys(cacheData.tools)).toContain("add");
 
+		const altOutput = path.join(tmpDir, "integration-alt.ts");
+		await new Promise<void>((resolve, reject) => {
+			exec.execFile(
+				"node",
+				[
+					"dist/cli.js",
+					"generate-cli",
+					"--name",
+					"integration-alt",
+					"--command",
+					baseUrl.toString(),
+					"--output",
+					altOutput,
+				],
+				execOptions(),
+				(error) => {
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve();
+				},
+			);
+		});
+		const altContent = await fs.readFile(altOutput, "utf8");
+		expect(altContent).toContain("integration-alt");
+
 		// --raw path exercised implicitly by runtime when needed; end-to-end call
 		// verification is covered in runtime integration tests.
 	}, 20_000);

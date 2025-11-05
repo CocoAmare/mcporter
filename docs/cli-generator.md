@@ -17,7 +17,7 @@ Create an `mcporter generate-cli` command that produces a standalone CLI for a s
 ## Steps
 1. **Command Scaffolding**
    - Add `generate-cli` subcommand to the existing CLI.
-   - Parse flags: `--server`, `--output`, `--runtime=node|bun`, `--bundle`, `--minify`, `--compile`, etc.
+   - Parse flags: `--server`, `--name`, `--command`, optional `--description`, plus `--output`, `--runtime=node|bun`, `--bundle`, `--minify`, `--compile`, etc.
 2. **Server Resolution**
    - If `--server` matches a configured name (via `loadServerDefinitions`), use that server definition.
    - Otherwise, if the value looks like a file path, load a Cursor-style JSON definition from disk.
@@ -53,20 +53,21 @@ Create an `mcporter generate-cli` command that produces a standalone CLI for a s
 ## Usage Examples
 
 ```bash
-# Inline definition, emit TypeScript + optional minified bundle
-npx mcporter generate-cli \
-  --server '{"name":"context7","command":"https://mcp.context7.com/mcp"}' \
-  --minify
+# Shorthand flags emit TypeScript + optional minified bundle
+npx mcporter generate-cli   --name context7   --command https://mcp.context7.com/mcp   --minify
 
 # Bun-friendly binary using --compile (requires Bun installed)
-npx mcporter generate-cli \
-  --server '{"name":"context7","command":"https://mcp.context7.com/mcp"}' \
-  --runtime bun \
-  --compile
+npx mcporter generate-cli   --name context7   --command https://mcp.context7.com/mcp   --runtime bun   --compile
+
+chmod +x context7
+./context7 list-tools
 
 - `--minify` shrinks the bundled output via esbuild (output defaults to `<server>.js`).
 - `--compile [path]` implies bundling and invokes `bun build --compile` to create the native executable (Bun only). When you omit the path, the compiled binary inherits the server name.
+- Use `--server '{...}'` when you need advanced configuration (headers, env vars, stdio commands, OAuth metadata).
 ```
+
+
 
 ## Status
 - ✅ `generate-cli` subcommand implemented with schema-aware proxy generation.

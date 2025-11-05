@@ -66,21 +66,27 @@ function extractFlags(args: string[], keys: string[]): FlagMap {
 }
 
 interface GenerateFlags {
-	server: string;
+	server?: string;
+	name?: string;
+	command?: string;
+	description?: string;
 	output?: string;
 	bundle?: boolean | string;
 	compile?: boolean | string;
-	runtime: "node" | "bun";
+	runtime?: "node" | "bun";
 	timeout: number;
 	minify: boolean;
 }
 
 function parseGenerateFlags(args: string[]): GenerateFlags {
 	let server: string | undefined;
+	let name: string | undefined;
+	let command: string | undefined;
+	let description: string | undefined;
 	let output: string | undefined;
 	let bundle: boolean | string | undefined;
 	let compile: boolean | string | undefined;
-	let runtime: "node" | "bun" = "node";
+	let runtime: "node" | "bun" | undefined;
 	let timeout = 30_000;
 	let minify = false;
 
@@ -93,6 +99,21 @@ function parseGenerateFlags(args: string[]): GenerateFlags {
 		}
 		if (token === "--server") {
 			server = expectValue(token, args[index + 1]);
+			args.splice(index, 2);
+			continue;
+		}
+		if (token === "--name") {
+			name = expectValue(token, args[index + 1]);
+			args.splice(index, 2);
+			continue;
+		}
+		if (token === "--command") {
+			command = expectValue(token, args[index + 1]);
+			args.splice(index, 2);
+			continue;
+		}
+		if (token === "--description") {
+			description = expectValue(token, args[index + 1]);
 			args.splice(index, 2);
 			continue;
 		}
@@ -149,11 +170,18 @@ function parseGenerateFlags(args: string[]): GenerateFlags {
 		throw new Error(`Unknown flag '${token}' for generate-cli.`);
 	}
 
-	if (!server) {
-		throw new Error("--server flag is required for generate-cli.");
-	}
-
-	return { server, output, bundle, compile, runtime, timeout, minify };
+	return {
+		server,
+		name,
+		command,
+		description,
+		output,
+		bundle,
+		compile,
+		runtime,
+		timeout,
+		minify,
+	};
 }
 
 function expectValue(flag: string, value: string | undefined): string {
@@ -185,8 +213,22 @@ async function handleGenerateCli(
 	globalFlags: FlagMap,
 ): Promise<void> {
 	const parsed = parseGenerateFlags(args);
+	const serverRef =
+		parsed.server ??
+		(parsed.name && parsed.command
+			? JSON.stringify({
+					name: parsed.name,
+					command: parsed.command,
+					...(parsed.description ? { description: parsed.description } : {}),
+				})
+			: undefined);
+	if (!serverRef) {
+		throw new Error(
+			"Provide --server with a definition or supply --name and --command.",
+		);
+	}
 	const { outputPath, bundlePath, compilePath } = await generateCli({
-		serverRef: parsed.server,
+		serverRef,
 		configPath: globalFlags["--config"],
 		rootDir: globalFlags["--root"],
 		outputPath: parsed.output,
@@ -484,7 +526,8 @@ Commands:
   list [name] [--schema]             List configured MCP servers (and tools for a server)
   call [selector] [flags]            Call a tool (selector like server.tool)
     --tail-log                       Tail log output when the tool returns a log file path
-  generate-cli --server <ref>        Generate a standalone CLI for a server (supports --output, --bundle)
+  generate-cli --server <ref>        Generate a standalone CLI (supports --output, --bundle)
+    --name <name> --command <ref>   Alternate shorthand for --server JSON
 
 Global flags:
   --config <path>                    Path to mcporter.json (defaults to ./config/mcporter.json)
