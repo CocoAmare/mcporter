@@ -102,6 +102,9 @@ Common flags:
 | `--config <path>` | Path to `mcporter.json` (defaults to `./config/mcporter.json`). |
 | `--root <path>` | Working directory for stdio commands (so `scripts/*` resolve correctly). |
 | `--tail-log` | After the tool completes, print the last 20 lines of any referenced log file. |
+| `--log-level <debug\|info\|warn\|error>` | Adjust CLI verbosity; defaults to `warn` (respecting `MCPORTER_LOG_LEVEL`). |
+
+Prefer the flag for per-command tweaks, or set `MCPORTER_LOG_LEVEL=info` (or `debug`) to change the default globally.
 
 ### OAuth Flow
 
