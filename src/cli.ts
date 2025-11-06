@@ -10,8 +10,18 @@ import { readCliMetadata } from './cli-metadata.js';
 import type { ServerSource } from './config.js';
 import { generateCli } from './generate-cli.js';
 import { createRuntime } from './runtime.js';
+import {
+  createPrefixedConsoleLogger,
+  parseLogLevel,
+  resolveLogLevelFromEnv,
+  type LogLevel,
+  type Logger,
+} from './logging.js';
 
 type FlagMap = Partial<Record<string, string>>;
+
+let activeLogLevel: LogLevel = resolveLogLevelFromEnv();
+let activeLogger: Logger = createPrefixedConsoleLogger('mcporter', activeLogLevel);
 
 type ProcessWithHandles = NodeJS.Process & {
   _getActiveHandles?: () => unknown[];
@@ -20,20 +30,17 @@ type ProcessWithHandles = NodeJS.Process & {
 
 function logInfo(message: string) {
   // Log an info-level message with the standard prefix.
-  console.log(`[mcporter] ${message}`);
+  activeLogger.info(message);
 }
 
 function logWarn(message: string) {
   // Emit a warning with the standard prefix.
-  console.warn(`[mcporter] ${message}`);
+  activeLogger.warn(message);
 }
 
 function logError(message: string, error?: unknown) {
   // Output an error message and optional error object.
-  console.error(`[mcporter] ${message}`);
-  if (error) {
-    console.error(error);
-  }
+  activeLogger.error(message, error);
 }
 
 // main parses CLI flags and dispatches to list/call commands.
@@ -44,7 +51,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const globalFlags = extractFlags(argv, ['--config', '--root']);
+  const globalFlags = extractFlags(argv, ['--config', '--root', '--log-level']);
+  if (globalFlags['--log-level']) {
+    try {
+      activeLogLevel = parseLogLevel(globalFlags['--log-level'], activeLogLevel);
+      activeLogger = createPrefixedConsoleLogger('mcporter', activeLogLevel);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logError(message, error instanceof Error ? error : undefined);
+      process.exit(1);
+    }
+  }
   const command = argv.shift();
 
   if (!command) {
@@ -70,6 +87,7 @@ async function main(): Promise<void> {
   const runtime = await createRuntime({
     configPath: globalFlags['--config'],
     rootDir: globalFlags['--root'],
+    logger: activeLogger,
   });
 
   try {
@@ -1196,6 +1214,7 @@ Commands:
 Global flags:
   --config <path>                    Path to mcporter.json (defaults to ./config/mcporter.json)
   --root <path>                      Root directory for stdio command cwd
+  --log-level <debug|info|warn|error>  Adjust CLI log verbosity (defaults to warn)
 `);
 }
 

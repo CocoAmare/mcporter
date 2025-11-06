@@ -10,6 +10,12 @@ import type { CallToolRequest, ListResourcesRequest } from '@modelcontextprotoco
 import { loadServerDefinitions, type ServerDefinition } from './config.js';
 import { resolveEnvPlaceholders, resolveEnvValue, withEnvOverrides } from './env.js';
 import { createOAuthSession, type OAuthSession } from './oauth.js';
+import {
+  createPrefixedConsoleLogger,
+  resolveLogLevelFromEnv,
+  type Logger,
+  type LogLevel,
+} from './logging.js';
 
 const PACKAGE_NAME = 'mcporter';
 const CLIENT_VERSION = '0.2.0';
@@ -25,11 +31,7 @@ export interface RuntimeOptions {
   readonly logger?: RuntimeLogger;
 }
 
-export interface RuntimeLogger {
-  info(message: string): void;
-  warn(message: string): void;
-  error(message: string, error?: unknown): void;
-}
+export type RuntimeLogger = Logger;
 
 export interface CallOptions {
   readonly args?: CallToolRequest['params']['arguments'];
@@ -295,7 +297,7 @@ class McpRuntime implements Runtime {
           };
         } catch (error) {
           await streamableTransport.close().catch(() => {});
-          this.logger.info(`Falling back to SSE transport for '${definition.name}': ${(error as Error).message}`);
+          this.logger.warn(`Falling back to SSE transport for '${definition.name}': ${(error as Error).message}`);
           const sseTransport = new SSEClientTransport(definition.command.url, {
             ...baseOptions,
           });
@@ -354,21 +356,8 @@ class McpRuntime implements Runtime {
   }
 }
 
-function createConsoleLogger(): RuntimeLogger {
-  return {
-    info: (message) => {
-      console.log(`[mcporter] ${message}`);
-    },
-    warn: (message) => {
-      console.warn(`[mcporter] ${message}`);
-    },
-    error: (message, error) => {
-      console.error(`[mcporter] ${message}`);
-      if (error) {
-        console.error(error);
-      }
-    },
-  };
+function createConsoleLogger(level: LogLevel = resolveLogLevelFromEnv()): RuntimeLogger {
+  return createPrefixedConsoleLogger('mcporter', level);
 }
 
 function materializeHeaders(

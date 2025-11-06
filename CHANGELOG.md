@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- _No changes yet._
+- Added configurable log levels (`--log-level` flag and `MCPORTER_LOG_LEVEL`) with a default of `warn`, and promoted transport fallbacks to warnings so important failures still surface at the quieter default.
 
 ## [0.2.0] - 2025-11-06
 
