@@ -152,8 +152,21 @@ async function main(): Promise<void> {
       }
     } finally {
       terminateChildProcesses('runtime.finally');
+      // By default we force an exit after cleanup so Node doesn't hang on lingering stdio handles
+      // (see typescript-sdk#579/#780/#1049). Opt out by exporting MCPORTER_NO_FORCE_EXIT=1.
+      const disableForceExit = process.env.MCPORTER_NO_FORCE_EXIT === '1';
       if (DEBUG_HANG) {
         dumpActiveHandles('after terminateChildProcesses');
+        if (!disableForceExit || process.env.MCPORTER_FORCE_EXIT === '1') {
+          process.exit(0);
+        }
+      } else {
+        const scheduleExit = () => {
+          if (!disableForceExit || process.env.MCPORTER_FORCE_EXIT === '1') {
+            process.exit(0);
+          }
+        };
+        setImmediate(scheduleExit);
       }
     }
   }

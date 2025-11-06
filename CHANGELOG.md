@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - Added configurable log levels (`--log-level` flag and `MCPORTER_LOG_LEVEL`) with a default of `warn`, and promoted transport fallbacks to warnings so important failures still surface at the quieter default.
+- Forced the CLI to exit cleanly after shutdown (new `MCPORTER_NO_FORCE_EXIT` opt-out) and patched `StdioClientTransport` locally so stdio MCP servers do not leave Node handles hanging. Documented the tmux workflow for hang debugging.
 
 ## [0.2.0] - 2025-11-06
 

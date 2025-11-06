@@ -57,3 +57,20 @@ child process, which mcporter will now terminate during shutdown.
   messages, manually terminate the PID listed in the log.
 - Always keep tmux sessions tidy after debugging: `tmux kill-session -t
   <session>`.
+- The CLI now forces `process.exit(0)` after cleanup by default so Node never
+  lingers on leaked handles. Export `MCPORTER_NO_FORCE_EXIT=1` if you’re
+  debugging and need the process to stay alive.
+- You can still set `MCPORTER_FORCE_EXIT=1` explicitly when you want to force
+  termination even with `MCPORTER_NO_FORCE_EXIT` in play.
+
+## Upstream Tracking
+
+- `@modelcontextprotocol/sdk` **1.21.0** is the latest release pulled into mcporter.
+- Open SDK issues related to stdio shutdown:
+  - [#579 StdioClientTransport does not follow the spec on close](https://github.com/modelcontextprotocol/typescript-sdk/issues/579)
+  - [#780 onerror listeners not removed after client close (stdio)](https://github.com/modelcontextprotocol/typescript-sdk/issues/780)
+  - [#1049 stdio client crashes when spawned server exits unexpectedly](https://github.com/modelcontextprotocol/typescript-sdk/issues/1049)
+
+We keep a local checkout of the SDK under `~/Projects/typescript-sdk/` so we can
+diff against upstream and craft repros/patches quickly. Any mcporter-specific
+workarounds live in `src/sdk-patches.ts` until the upstream fixes land.

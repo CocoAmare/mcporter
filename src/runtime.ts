@@ -18,6 +18,7 @@ import {
   type Logger,
   type LogLevel,
 } from './logging.js';
+import './sdk-patches.js';
 
 const PACKAGE_NAME = 'mcporter';
 const CLIENT_VERSION = '0.2.0';
@@ -378,7 +379,7 @@ async function closeTransportAndWait(
   }
 
   if (childProcess) {
-    await waitForChildClose(childProcess, 500).catch(() => {});
+    await waitForChildClose(childProcess, 1_000).catch(() => {});
   }
 
   if (!pidBeforeClose) {
@@ -426,12 +427,14 @@ async function waitForChildClose(child: ChildProcess, timeoutMs: number): Promis
     };
     const cleanup = () => {
       child.removeListener('close', finish);
+      child.removeListener('exit', finish);
       child.removeListener('error', finish);
       if (timer) {
         clearTimeout(timer);
       }
     };
     child.once('close', finish);
+    child.once('exit', finish);
     child.once('error', finish);
     let timer: NodeJS.Timeout | undefined;
     if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
@@ -439,6 +442,55 @@ async function waitForChildClose(child: ChildProcess, timeoutMs: number): Promis
       timer.unref?.();
     }
   });
+
+  try {
+    child.stdin?.end?.();
+  } catch {
+    // ignore
+  }
+  try {
+    child.stdout?.destroy?.();
+    child.stdout?.removeAllListeners?.();
+    (child.stdout as unknown as { unref?: () => void })?.unref?.();
+  } catch {
+    // ignore
+  }
+  try {
+    child.stderr?.destroy?.();
+    child.stderr?.removeAllListeners?.();
+    (child.stderr as unknown as { unref?: () => void })?.unref?.();
+  } catch {
+    // ignore
+  }
+  try {
+    const stdio = (child as { stdio?: unknown[] }).stdio;
+    if (Array.isArray(stdio)) {
+      for (const stream of stdio) {
+        if (!stream || typeof stream !== 'object') {
+          continue;
+        }
+        try {
+          (stream as { removeAllListeners?: () => void }).removeAllListeners?.();
+          (stream as { destroy?: () => void }).destroy?.();
+          (stream as { end?: () => void }).end?.();
+        } catch {
+          // ignore
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    child.removeAllListeners();
+  } catch {
+    // ignore
+  }
+  try {
+    child.unref?.();
+  } catch {
+    // ignore
+  }
 }
 
 // isProcessAlive returns true when the target PID still exists.

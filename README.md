@@ -1,234 +1,173 @@
 # mcporter 🧳
-_TypeScript runtime + CLI generator for the Model Context Protocol._
+_TypeScript runtime, CLI, and code-generation toolkit for the Model Context Protocol._
 
-`mcporter` packages an ergonomic, composable toolkit that works equally well for command-line operators and long-running agents.
+mcporter helps you lean into the "code execution" workflows highlighted in Anthropic's **Code Execution with MCP** guidance: discover the MCP servers already configured on your system, call them directly, compose richer automations in TypeScript, and mint single-purpose CLIs when you need to share a tool. All of that works out of the box -- no boilerplate, no schema spelunking.
 
-## Features
+## Key Capabilities
 
-- **Zero-config CLI** – `npx mcporter list` and `npx mcporter call` get you from install to tool execution quickly, with niceties such as `--tail-log`.
-- **Composable runtime API** – `createRuntime()` pools connections, handles retries, and exposes a typed interface for Bun/Node agents.
-- **OAuth support** – automatic browser launches, local callback server, and token persistence under `~/.mcporter/<server>/` (compatible with existing `token_cache_dir` overrides).
-- **Structured configuration** – reads `config/mcporter.json`, automatically merges Cursor/Claude/Codex configs when present, and expands `${ENV}` placeholders, stdio wrappers, and headers in a predictable way.
-- **Integration-ready** – ships with unit and integration tests (including a streamable HTTP fixture) plus GitHub Actions CI, so changes remain trustworthy.
+- **Zero-config discovery.** `createRuntime()` loads `config/mcporter.json`, merges Cursor/Claude/Codex imports, expands `${ENV}` placeholders, and pools connections so you can reuse transports across multiple calls.
+- **One-command CLI generation.** `mcporter generate-cli` turns any MCP server definition into a ready-to-run CLI, with optional bundling/compilation and metadata for easy regeneration.
+- **Friendly composable API.** `createServerProxy()` exposes tools as ergonomic camelCase methods, automatically applies JSON-schema defaults, validates required arguments, and hands back a `CallResult` with `.text()`, `.markdown()`, `.json()`, and `.content()` helpers.
+- **OAuth and stdio ergonomics.** Built-in OAuth caching, log tailing, and stdio wrappers let you work with HTTP, SSE, and stdio transports from the same interface.
+
+## Quick Start
+
+mcporter auto-discovers the MCP servers you already configured in Cursor, Claude Code/Desktop, Codex, or local overrides. You can try it immediately with `npx`--no installation required.
+
+### List your MCP servers
+
+```bash
+npx mcporter list
+npx mcporter list context7 --schema
+```
+
+### Context7: fetch docs (no auth required)
+
+```bash
+npx mcporter call context7.resolve-library-id libraryName=react
+npx mcporter call context7.get-library-docs context7CompatibleLibraryID=/websites/react_dev topic=hooks
+```
+
+### Linear: search documentation (requires `LINEAR_API_KEY`)
+
+```bash
+LINEAR_API_KEY=sk_linear_example npx mcporter call linear.search_documentation query="automations"
+```
+
+### Chrome DevTools: snapshot the current tab
+
+```bash
+npx mcporter call chrome-devtools.take_snapshot
+```
+
+Helpful flags:
+
+- `--config <path>` -- custom config file (defaults to `./config/mcporter.json`).
+- `--root <path>` -- working directory for stdio commands.
+- `--log-level <debug|info|warn|error>` -- adjust verbosity (respects `MCPORTER_LOG_LEVEL`).
+- `--tail-log` -- stream the last 20 lines of any log files referenced by the tool response.
+- For OAuth-protected servers such as `vercel`, run `npx mcporter auth vercel` once to complete login.
+
+Timeouts default to 30 s; override with `MCPORTER_LIST_TIMEOUT` or `MCPORTER_CALL_TIMEOUT` when you expect slow startups.
+
 
 ## Installation
 
-### npm / pnpm / yarn
+### Run instantly with `npx`
+
+```bash
+npx mcporter list
+```
+
+### Add to your project
 
 ```bash
 pnpm add mcporter
-# or
-yarn add mcporter
-# or
-npm install mcporter
 ```
 
-### Homebrew (macOS arm64)
+### Homebrew (planned for mcporter 0.3.0)
 
 ```bash
 brew tap steipete/tap
 brew install steipete/tap/mcporter
 ```
 
-> Note: Homebrew installation currently ships the Bun-compiled arm64 binary. Intel Macs should use the npm install method or Rosetta.
+> The tap publishes alongside mcporter 0.3.0. Until then, use `npx` or `pnpm add`.
 
-## Quick Start
-
-```ts
-import { createRuntime } from "mcporter";
-
-const runtime = await createRuntime({ configPath: "./config/mcporter.json" });
-
-const tools = await runtime.listTools("chrome-devtools");
-const screenshot = await runtime.callTool("chrome-devtools", "take_screenshot", {
-  args: { url: "https://x.com" },
-});
-
-await runtime.close();
-```
-
-Prefer `createRuntime` when you plan to issue multiple calls—the runtime caches connections, handles OAuth refreshes, and closes transports when you call `runtime.close()`.
-
-An end-to-end example lives in `examples/context7-headlines.ts`; it resolves a library via Context7, fetches documentation, and prints the markdown headings. Run it with:
-
-```
-pnpm exec tsx examples/context7-headlines.ts
-```
-
-Need a quick, single invocation?
+## One-shot calls from code
 
 ```ts
 import { callOnce } from "mcporter";
 
 const result = await callOnce({
-  server: "firecrawl",
-  toolName: "crawl",
-  args: { url: "https://anthropic.com" },
-  configPath: "./config/mcporter.json",
+	server: "firecrawl",
+	toolName: "crawl",
+	args: { url: "https://anthropic.com" },
 });
+
+console.log(result); // raw MCP envelope
 ```
 
-## CLI Reference
+`callOnce` automatically discovers the selected server (including Cursor/Claude/Codex imports), handles OAuth prompts, and closes transports when it finishes. It is ideal for manual runs or wiring mcporter directly into an agent tool hook.
 
-```
-npx mcporter list                          # list all configured servers (non-blocking auth detection)
-npx mcporter list vercel --schema          # show tool signatures + schemas
-npx mcporter auth vercel --reset           # clear cached tokens, then walk through OAuth
-npx mcporter auth vercel                   # pre-authorize OAuth flows without listing tools
-npx mcporter call linear.searchIssues owner=ENG status=InProgress
-npx mcporter call signoz.query --tail-log  # print the tail of returned log files
-npx mcporter inspect-cli scripts/cli/vercel        # show metadata + stored generate-cli command
-npx mcporter regenerate-cli scripts/cli/vercel     # rebuild a CLI artifact using saved metadata
+## Compose Automations with the Runtime
 
-# Local scripts for workspace automation
-pnpm mcporter:list                                 # alias for mcporter list
-pnpm mcporter:call chrome-devtools.getTabs --tail-log
-pnpm mcporter:auth vercel --reset                  # same as mcporter auth --reset
-pnpm mcporter:auth vercel                          # same as mcporter auth
-```
+```ts
+import { createRuntime } from "mcporter";
 
-Generated artifacts drop a companion `<artifact>.metadata.json` that records the generator version, resolved server definition, and the exact `generate-cli` flags that produced the file. Use `mcporter inspect-cli <artifact>` to review the metadata (or emit JSON with `--json`), and `mcporter regenerate-cli <artifact>` to replay the stored invocation against the latest mcporter build.
+const runtime = await createRuntime();
 
-`pnpm mcporter:list` respects `MCPORTER_LIST_TIMEOUT` (milliseconds, default `30000`). The aggregated view fans out in parallel and prints either the tool count or a short status (e.g., `auth required — run 'mcporter auth <name>'`). Export a higher timeout when you need to inspect slow-starting servers:
+const tools = await runtime.listTools("context7");
+const result = await runtime.callTool("context7", "resolve-library-id", {
+	args: { libraryName: "react" },
+});
 
-```
-MCPORTER_LIST_TIMEOUT=120000 pnpm mcporter:list vercel
+console.log(result); // raw MCP envelope
+await runtime.close(); // shuts down transports and OAuth sessions
 ```
 
-Common flags:
+Reach for `createRuntime()` when you need connection pooling, repeated calls, or advanced options such as explicit timeouts and log streaming. The runtime reuses transports, refreshes OAuth tokens, and only tears everything down when you call `runtime.close()`.
 
-| Flag | Description |
-| --- | --- |
-| `--config <path>` | Path to `mcporter.json` (defaults to `./config/mcporter.json`). |
-| `--root <path>` | Working directory for stdio commands (so `scripts/*` resolve correctly). |
-| `--tail-log` | After the tool completes, print the last 20 lines of any referenced log file. |
-| `--log-level <debug\|info\|warn\|error>` | Adjust CLI verbosity; defaults to `warn` (respecting `MCPORTER_LOG_LEVEL`). |
+## Compose Tools in Code
 
-Prefer the flag for per-command tweaks, or set `MCPORTER_LOG_LEVEL=info` (or `debug`) to change the default globally.
-
-### OAuth Flow
-
-When a server entry declares `"auth": "oauth"`, the CLI/runtime will:
-
-1. Launch a temporary callback server on `127.0.0.1`.
-2. Open the authorization URL in your default browser (or print it if launching fails).
-3. Exchange the resulting code and persist refreshed tokens under `~/.mcporter/<server>/`.
-
-To reset credentials, delete that directory and rerun the command—`mcporter` will trigger a fresh login.
-
-### Generate Standalone CLIs
-
-`mcporter` can mint a fully standalone CLI for any server—handy when you want a single-purpose tool with friendly flags. You do **not** need an on-disk config; provide `--command` (optionally `--name`) or fall back to `--server '{...}'` for advanced options:
-
-Generate a single executable you can ship to agents or drop on a PATH:
-
-```bash
-npx mcporter generate-cli --command https://mcp.context7.com/mcp --compile
-chmod +x context7
-./context7 list-tools
-./context7 resolve-library-id react
-```
-
-Pass `--description` if you want a friendly summary in the generated help, or fall back to `--server '{...}'` when you need headers, env vars, or stdio commands.
-
-If you omit `--name`, mcporter infers one from the command URL (for example, `https://mcp.context7.com/mcp` becomes `context7`).
-
-The command writes `context7.ts` alongside a compiled `context7` binary. Generated CLIs embed the discovered schemas, so subsequent executions skip `listTools` round-trips and hit the network only for real tool calls. Use `--bundle` without a value to auto-name the output, and pass `--timeout` to raise the per-call default (30s). Add `--minify` to shrink bundled output. Compilation currently requires Bun; `--compile [path]` runs `bun build --compile` to emit a native executable, and when you omit the path the binary inherits the server name (`context7` in the example) so you can drop it straight onto your PATH.
-
-> Tip: When Bun (or `BUN_BIN`) is available, `mcporter` defaults to `--runtime bun`; otherwise it falls back to Node. Pass `--runtime node` or `--runtime bun` to override explicitly.
-
-## Composable Workflows
-
-The package exports a thin runtime that lets you compose multiple MCP calls and post-process the results entirely in TypeScript. The example in `examples/context7-headlines.ts` demonstrates how to:
-
-1. Resolve a library ID with `context7.resolve-library-id`
-2. Fetch the docs via `context7.get-library-docs`
-3. Derive a summary (markdown headings) locally
-
-Use the pattern to build richer automations—batch fetch docs, search with Context7, or pass results into another MCP server without shelling out to the CLI.
-
-Prefer the `createServerProxy` helper when you want an ergonomic proxy object for a server:
+The runtime API is built for agents and scripts, not just humans at a terminal.
 
 ```ts
 import { createRuntime, createServerProxy } from "mcporter";
 
-const mcpRuntime = await createRuntime({
-	servers: [
-		{
-			name: "context7",
-			description: "Context7 docs MCP",
-			command: {
-				kind: "http",
-				url: new URL("https://mcp.context7.com/mcp"),
-				headers: process.env.CONTEXT7_API_KEY
-					? { Authorization: `Bearer ${process.env.CONTEXT7_API_KEY}` }
-					: undefined,
-			},
-		},
-	],
+const runtime = await createRuntime();
+const chrome = createServerProxy(runtime, "chrome-devtools");
+const linear = createServerProxy(runtime, "linear");
+
+const snapshot = await chrome.takeSnapshot();
+console.log(snapshot.text());
+
+const docs = await linear.searchDocumentation({
+	query: "automations",
+	page: 0,
 });
-// Inline definitions work at runtime; move this block to config/mcporter.json if you prefer static config.
-
-const context7 = createServerProxy(mcpRuntime, "context7");
-
-const search = await context7.resolveLibraryId("react");
-const docs = await context7.getLibraryDocs("react"); // maps to required schema fields
-
-console.log(search.text()); // "Available Libraries ..."
-console.log(docs.markdown()); // markdown excerpt
-
-await mcpRuntime.close();
+console.log(docs.json());
 ```
 
-Every property access maps from camelCase to the underlying tool name automatically (`resolveLibraryId` → `resolve-library-id`). Beyond method names, the proxy:
+Friendly ergonomics baked into the proxy and result helpers:
 
-- merges JSON-schema defaults so you only specify overrides;
-- validates required arguments and throws helpful errors when fields are missing;
-- returns a `CallResult` wrapper with `.raw`, `.text()`, `.markdown()`, `.json()`, and other helpers for quick post-processing.
-- accepts primitives, tuples, or plain objects and routes them onto required schema fields in order (multi-argument tools like Firecrawl’s `scrape` work with positional calls);
+- Property names map from camelCase to kebab-case tool names (`takeSnapshot` -> `take_snapshot`).
+- Positional arguments map onto schema-required fields automatically, and option objects respect JSON-schema defaults.
+- Results are wrapped in a `CallResult`, so you can choose `.text()`, `.markdown()`, `.json()`, `.content()`, or access `.raw` when you need the full envelope.
 
-```ts
-const firecrawl = createServerProxy(mcpRuntime, "firecrawl");
-await firecrawl.firecrawlScrape(
-	"https://example.com/docs",
-	["markdown", "html"], // 2nd required/optional field from schema
-	{ waitFor: 5000 }, // merged as args
-	{ tailLog: true }, // treated as call options
-);
+Drop down to `runtime.callTool()` whenever you need explicit control over arguments, metadata, or streaming options.
+
+## Generate a Standalone CLI
+
+Turn any server definition into a shareable CLI artifact:
+
+```bash
+npx mcporter generate-cli \
+  --command https://mcp.context7.com/mcp
+
+# Outputs:
+#   context7.ts        (TypeScript template with embedded schemas)
+#   context7.js        (bundled CLI via esbuild)
+#   context7.js.metadata.json
 ```
 
-You can still drop down to `context7.call("resolve-library-id", { args: { ... } })` when you need explicit control.
+- `--name` overrides the inferred CLI name.
+- Add `--description "..."` if you want a custom summary in the generated help output.
+- Add `--bundle [path]` to emit an esbuild bundle alongside the template.
+- `--output <path>` writes the template somewhere specific.
+- `--runtime bun|node` picks the runtime for generated code (Bun required for `--compile`).
+- Add `--compile` to emit a Bun-compiled binary; mcporter cleans up intermediate bundles when you omit `--bundle`.
 
-### Compose higher-level flows
+Every artifact is paired with metadata capturing the generator version, resolved server definition, and invocation flags. Use:
 
-Because the proxy already maps positional arguments to schema fields, you can layer custom helpers with plain JavaScript:
-
-```ts
-const context7 = createServerProxy(mcpRuntime, "context7");
-
-async function getDocs(libraryName: string) {
-	const resolved = await context7.resolveLibraryId(libraryName);
-	const id =
-		resolved
-			.json<{ candidates?: Array<{ context7CompatibleLibraryID?: string }> }>()
-			?.candidates?.find((candidate) => candidate?.context7CompatibleLibraryID)
-			?.context7CompatibleLibraryID ??
-		resolved.text()?.match(/Context7-compatible library ID:\s*([^\s]+)/)?.[1];
-	if (!id) {
-		throw new Error(`Context7 library "${libraryName}" not found.`);
-	}
-	return context7.getLibraryDocs(id);
-}
-
-const docs = await getDocs("react");
-console.log(docs.markdown());
+```
+npx mcporter inspect-cli dist/context7.js     # human-readable summary
+npx mcporter regenerate-cli dist/context7.js  # replay with latest mcporter
 ```
 
-The return value is still a `CallResult`, so you retain `.text()`, `.markdown()`, `.json()`, and friends.
+## Configuration Reference
 
-## Configuration
-
-Define your servers in `config/mcporter.json` using the same shape Cursor and Claude Code expect:
+`config/mcporter.json` mirrors Cursor/Claude's shape:
 
 ```jsonc
 {
@@ -249,36 +188,25 @@ Define your servers in `config/mcporter.json` using the same shape Cursor and Cl
 }
 ```
 
-Fields you can use:
+What mcporter handles for you:
 
-- `baseUrl` for HTTP/SSE servers.
-- `command` + optional `args` for stdio servers.
-- Optional metadata such as `description`, `headers`, `env`, `auth`, `tokenCacheDir`, and `clientName`.
-- Convenience helpers `bearerToken` or `bearerTokenEnv` populate `Authorization` headers automatically.
+- `${VAR}`, `${VAR:-fallback}`, and `$env:VAR` interpolation for headers and env entries.
+- Automatic OAuth token caching under `~/.mcporter/<server>/` unless you override `tokenCacheDir`.
+- Stdio commands inherit the directory of the file that defined them (imports or local config).
+- Import precedence matches the array order; omit `imports` to use the default `["cursor", "claude-code", "claude-desktop", "codex"]`.
 
-If you omit the optional `imports` array, `mcporter` automatically merges Cursor, Claude Code, Claude Desktop, and Codex configs (first entry wins on conflicts). Set `"imports": []` to disable or provide a custom order such as `"imports": ["cursor", "codex"]`.
+Provide `configPath` or `rootDir` to CLI/runtime calls when you juggle multiple config files side by side.
 
-Pass a different path via `createRuntime({ configPath })` when you need multiple configs side by side.
-
-## Testing & CI
+## Testing and CI
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm check` | Biome lint/format check. |
+| `pnpm check` | Biome formatting plus Oxlint/tsgolint gate. |
 | `pnpm build` | TypeScript compilation (emits `dist/`). |
-| `pnpm test` | Vitest unit + integration suites (includes a streamable HTTP MCP fixture). |
+| `pnpm test` | Vitest unit and integration suites (streamable HTTP fixtures included). |
 
-GitHub Actions (`.github/workflows/ci.yml`) runs the same trio on every push and pull request.
-
-## Roadmap
-
-- Smoother OAuth UX (`mcporter auth <server>`, timeout warnings).
-- Tailing for streaming `structuredContent`, not just file paths.
-- Optional code generation for high-frequency tool schemas.
-- Automated release tooling (changelog, tagged publishes).
-
-For deeper architectural notes, see [`docs/spec.md`](docs/spec.md).
+CI runs the same trio via GitHub Actions.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT -- see [LICENSE](LICENSE).
