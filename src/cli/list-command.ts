@@ -179,11 +179,13 @@ export async function handleList(
       return;
     }
     const examples: string[] = [];
+    let optionalOmitted = false;
     for (const tool of tools) {
-      const example = printToolDetail(target, tool, Boolean(flags.schema), flags.requiredOnly);
-      if (example) {
-        examples.push(example);
+      const detail = printToolDetail(target, tool, Boolean(flags.schema), flags.requiredOnly);
+      if (detail.example) {
+        examples.push(detail.example);
       }
+      optionalOmitted ||= detail.optionalOmitted;
     }
     const uniqueExamples = Array.from(new Set(examples)).filter(Boolean).slice(0, 3);
     if (uniqueExamples.length > 0) {
@@ -191,6 +193,10 @@ export async function handleList(
       for (const example of uniqueExamples) {
         console.log(`    ${example}`);
       }
+      console.log('');
+    }
+    if (flags.requiredOnly && optionalOmitted) {
+      console.log(`  ${extraDimText('Optional parameters hidden; run with --include-optional to view all fields.')}`);
       console.log('');
     }
     return;
@@ -209,12 +215,17 @@ function indent(text: string, pad: string): string {
     .join('\n');
 }
 
+interface ToolDetailResult {
+  example?: string;
+  optionalOmitted: boolean;
+}
+
 function printToolDetail(
   serverName: string,
   tool: { name: string; description?: string; inputSchema?: unknown },
   includeSchema: boolean,
   requiredOnly: boolean
-): string | undefined {
+): ToolDetailResult {
   const options = extractOptions(tool as ServerToolInfo);
   const visibleOptions = requiredOnly ? options.filter((entry) => entry.required) : options;
   const lines = formatToolSignatureBlock(tool.name, tool.description ?? '', visibleOptions, options, requiredOnly);
@@ -227,7 +238,10 @@ function printToolDetail(
     console.log(indent(JSON.stringify(tool.inputSchema, null, 2), '      '));
   }
   console.log('');
-  return formatCallExpressionExample(serverName, tool.name, visibleOptions.length > 0 ? visibleOptions : options);
+  return {
+    example: formatCallExpressionExample(serverName, tool.name, visibleOptions.length > 0 ? visibleOptions : options),
+    optionalOmitted: requiredOnly && options.length > visibleOptions.length,
+  };
 }
 
 function formatToolSignatureBlock(

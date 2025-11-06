@@ -193,6 +193,11 @@ describe('CLI list classification', () => {
   expect(lines.some((line) => line.includes('// optional (2): format, dueBefore'))).toBe(true);
   expect(lines.some((line) => line.includes('Examples:'))).toBe(true);
   expect(lines.some((line) => line.includes('mcporter call calculator.add(a: 1)'))).toBe(true);
+  expect(
+    lines.some((line) =>
+      line.includes('Optional parameters hidden; run with --include-optional to view all fields')
+    )
+  ).toBe(true);
   expect(listToolsSpy).toHaveBeenCalledWith('calculator', { includeSchema: true });
 
   logSpy.mockRestore();
@@ -241,6 +246,11 @@ describe('CLI list classification', () => {
     expect(lines.some((line) => line.includes('dueBefore?: string'))).toBe(true);
     expect(lines.some((line) => line.includes('// optional:'))).toBe(false);
     expect(lines.some((line) => line.includes('mcporter call calculator.add(a: 1, format: "json")'))).toBe(true);
+    expect(
+      lines.some((line) =>
+        line.includes('Optional parameters hidden; run with --include-optional to view all fields')
+      )
+    ).toBe(false);
     expect(listToolsSpy).toHaveBeenCalledWith('calculator', { includeSchema: true });
 
     logSpy.mockRestore();
