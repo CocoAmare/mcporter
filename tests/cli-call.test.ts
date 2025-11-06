@@ -82,4 +82,31 @@ describe('CLI call argument parsing', () => {
       vi.useRealTimers();
     }
   });
+
+  it('auto-corrects near-miss tool names', async () => {
+    const { handleCall } = await cliModulePromise;
+    const callTool = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('MCP error -32602: Tool listIssues not found'))
+      .mockResolvedValueOnce({ ok: true });
+    const listTools = vi.fn().mockResolvedValue([{ name: 'list_issues' }]);
+    const runtime = {
+      callTool,
+      listTools,
+      close: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Awaited<ReturnType<typeof import('../src/runtime.js')['createRuntime']>>;
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleCall(runtime, ['linear.listIssues']);
+
+    const notes = logSpy.mock.calls.map((call) => call.join(' '));
+    expect(notes.some((line) => line.includes('Auto-corrected tool call to linear.list_issues'))).toBe(true);
+    expect(callTool).toHaveBeenCalledTimes(2);
+    expect(callTool).toHaveBeenNthCalledWith(1, 'linear', 'listIssues', { args: {} });
+    expect(callTool).toHaveBeenNthCalledWith(2, 'linear', 'list_issues', { args: {} });
+    expect(listTools).toHaveBeenCalledWith('linear');
+
+    logSpy.mockRestore();
+  });
 });

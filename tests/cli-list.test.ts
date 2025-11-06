@@ -132,18 +132,18 @@ describe('CLI list classification', () => {
         {
           name: 'add',
           description: 'Add two numbers',
-            inputSchema: options?.includeSchema
-              ? {
-                  type: 'object',
-                  properties: {
-                    a: { type: 'number' },
-                    format: { type: 'string', enum: ['json', 'markdown'] },
-                    dueBefore: { type: 'string', format: 'date-time', description: 'ISO 8601 timestamp' },
-                  },
-                  required: ['a'],
-                }
-              : undefined,
-          },
+          inputSchema: options?.includeSchema
+            ? {
+                type: 'object',
+                properties: {
+                  a: { type: 'number' },
+                  format: { type: 'string', enum: ['json', 'markdown'] },
+                  dueBefore: { type: 'string', format: 'date-time', description: 'ISO 8601 timestamp' },
+                },
+                required: ['a'],
+              }
+            : undefined,
+        },
       ])
     );
     const runtime = {
