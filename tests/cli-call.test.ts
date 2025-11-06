@@ -55,6 +55,18 @@ describe('CLI call argument parsing', () => {
     expect(parsed.args).toEqual({ timeout: 500 });
   });
 
+  it('accepts inline key:value arguments', async () => {
+    const { parseCallArguments } = await cliModulePromise;
+    const parsed = parseCallArguments(['chrome-devtools', 'list_pages', 'timeout:500']);
+    expect(parsed.args).toEqual({ timeout: 500 });
+  });
+
+  it('accepts spaced key: value arguments', async () => {
+    const { parseCallArguments } = await cliModulePromise;
+    const parsed = parseCallArguments(['chrome-devtools', 'list_pages', 'timeout:', '500']);
+    expect(parsed.args).toEqual({ timeout: 500 });
+  });
+
   it('parses function-call syntax with named arguments', async () => {
     const { parseCallArguments } = await cliModulePromise;
     const parsed = parseCallArguments(['linear.create_comment(issueId: "ISSUE-123", body: "Hello", notify: false)']);
@@ -89,7 +101,7 @@ describe('CLI call argument parsing', () => {
   it('throws when trailing tokens lack key=value formatting', async () => {
     const { parseCallArguments } = await cliModulePromise;
     expect(() => parseCallArguments(['chrome-devtools', 'list_pages', 'oops'])).toThrow(
-      "Argument 'oops' must be key=value format."
+      "Argument 'oops' must be key=value or key:value format."
     );
   });
 

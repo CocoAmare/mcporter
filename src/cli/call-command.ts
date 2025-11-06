@@ -140,29 +140,67 @@ export function parseCallArguments(args: string[]): CallArgsParseResult {
     result.tool = positional.shift();
   }
 
-  for (const token of positional) {
-    const [key, raw] = token.split('=', 2);
-    if (!key || raw === undefined) {
-      throw new Error(`Argument '${token}' must be key=value format.`);
+  for (let index = 0; index < positional.length; ) {
+    const token = positional[index];
+    if (!token) {
+      index += 1;
+      continue;
     }
-    const value = coerceValue(raw);
-    if ((key === 'tool' || key === 'command') && !result.tool) {
+    const parsed = parseKeyValueToken(token, positional[index + 1]);
+    if (!parsed) {
+      throw new Error(`Argument '${token}' must be key=value or key:value format.`);
+    }
+    index += parsed.consumed;
+    const value = coerceValue(parsed.rawValue);
+    if ((parsed.key === 'tool' || parsed.key === 'command') && !result.tool) {
       if (typeof value !== 'string') {
         throw new Error("Argument 'tool' must be a string value.");
       }
       result.tool = value as string;
       continue;
     }
-    if (key === 'server' && !result.server) {
+    if (parsed.key === 'server' && !result.server) {
       if (typeof value !== 'string') {
         throw new Error("Argument 'server' must be a string value.");
       }
       result.server = value as string;
       continue;
     }
-    result.args[key] = value;
+    result.args[parsed.key] = value;
   }
   return result;
+}
+
+function parseKeyValueToken(token: string, nextToken: string | undefined):
+  | { key: string; rawValue: string; consumed: number }
+  | undefined {
+  const eqIndex = token.indexOf('=');
+  if (eqIndex !== -1) {
+    const key = token.slice(0, eqIndex);
+    const rawValue = token.slice(eqIndex + 1);
+    if (!key) {
+      return undefined;
+    }
+    return { key, rawValue, consumed: 1 };
+  }
+
+  const colonIndex = token.indexOf(':');
+  if (colonIndex !== -1) {
+    const key = token.slice(0, colonIndex);
+    const remainder = token.slice(colonIndex + 1);
+    if (!key) {
+      return undefined;
+    }
+    if (remainder.length > 0) {
+      return { key, rawValue: remainder, consumed: 1 };
+    }
+    if (nextToken !== undefined) {
+      return { key, rawValue: nextToken, consumed: 2 };
+    }
+    return undefined;
+  }
+
+  return undefined;
 }
 
 export async function handleCall(

@@ -10,6 +10,7 @@
 - Added `src/cli/list-detail-helpers.ts` plus dedicated unit tests (`tests/list-detail-helpers.test.ts`) covering wrapping, param selection, and optional summaries; introduced an inline snapshot test for a complex Linear server to prevent regressions in the CLI formatter.
 - Exported the identifier normalization helpers so other modules can reuse the shared Levenshtein logic without duplicate implementations.
 - Added a shared `extractEphemeralServerFlags` helper so `list`, `call`, and `auth` parse ad-hoc transports consistently, extended `mcporter auth` to accept bare URLs/`--http-url`/`--stdio`, and taught single-server listings to hint `mcporter auth https://…` when a 401 occurs. Docs (`README.md`, `docs/adhoc.md`, `docs/local.md`, `docs/call-heuristic.md`) and new tests (`tests/cli-auth.test.ts`, `tests/cli-ephemeral-flags.test.ts`, expanded `tests/cli-list.test.ts`) cover the workflow.
+- Flag-style tool invocations now accept `key:value` and `key: value` alongside the existing `key=value` form, making commands like `mcporter context7.resolve-library-id libraryName:value` Just Work. Documented in the README/call syntax guide and covered by `tests/cli-call.test.ts`.
 
 ## [0.3.0] - 2025-11-06
 

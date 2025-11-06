@@ -4,7 +4,7 @@
 
 | Style | Example | Notes |
 |-------|---------|-------|
-| Flag-based (compatible) | `mcporter call linear.create_comment --issue-id LNR-123 --body "Hi"` | Great for shell scripts and backwards compatibility. |
+| Flag-based (compatible) | `mcporter call linear.create_comment --issue-id LNR-123 --body "Hi"` | Use `key=value`, `key:value`, or `key: value` pairs—ideal for shell scripts. |
 | Function-call (expressive) | `mcporter call 'linear.create_comment(issueId: "LNR-123", body: "Hi")'` | Mirrors the pseudo-TypeScript signature shown by `mcporter list`. |
 
 Both forms share the same validation pipeline, so required parameters, enums, and formats behave identically.
@@ -47,3 +47,9 @@ Key details:
 - The new syntax respects all existing features (timeouts, `--output`, auto-correction).
 - Required fields show by default; pass `--all-parameters` when you want the full parameter list (or `--schema` for raw JSON schemas).
 - When in doubt, run `mcporter list <server>` to see the current signature and sample invocation.
+
+## Flag-Based Syntax Details
+
+- `key=value`, `key:value`, and `key: value` all map to the same named-argument handling, so you can type whichever feels most natural for your shell.
+- Arguments keep the same validation pipeline as the function-call syntax—enums, numbers, and booleans are coerced automatically, and missing required fields raise errors.
+- `tool=value`/`tool:value` and `server=value` still act as aliases for `--tool` / `--server` when you need to override the selector.

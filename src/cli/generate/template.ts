@@ -3,7 +3,13 @@ import path from 'node:path';
 import type { ServerDefinition } from '../../config.js';
 import type { GeneratedOption, ToolMetadata } from './tools.js';
 import { buildEmbeddedSchemaMap } from './tools.js';
-import { formatFunctionSignature } from '../list-detail-helpers.js';
+import {
+  formatCallExpressionExample,
+  formatExampleBlock,
+  formatFunctionSignature,
+  formatOptionalSummary,
+  selectDisplayOptions,
+} from '../list-detail-helpers.js';
 
 export interface TemplateInput {
   outputPath?: string;
