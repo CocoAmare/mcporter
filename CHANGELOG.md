@@ -24,9 +24,6 @@
 - Updated the README, CLI reference, and generator docs to cover the new `--all-parameters` flag, list formatter, metadata embedding, tmux debugging, the `mcporter emit-ts` workflow, and refreshed branding so the CLI and docs consistently introduce the project as **MCPorter**.
 - Tightened `RELEASE.md` with a zero-warning policy so `pnpm check`, `pnpm test`, `npm pack --dry-run`, and friends must run clean before publishing.
 
-### Tests & QA
-- Removed lingering non-null assertions inside `tests/config-imports.test.ts`, keeping Biome lint runs pristine and preventing accidental regression of the zero-warning publishing gate.
-
 ## [0.2.0] - 2025-11-06
 
 - Added non-blocking `mcporter list` output with per-server status and parallel discovery.
