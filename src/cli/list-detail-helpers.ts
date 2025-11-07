@@ -1,4 +1,5 @@
 import type { GeneratedOption } from './generate/tools.js';
+import { buildFallbackLiteral, pickExampleLiteral } from './generate/tools.js';
 import { cyanText, dimText, extraDimText, yellowText } from './terminal.js';
 
 export interface SelectDisplayOptionsResult {
@@ -201,7 +202,7 @@ export function formatCallExpressionExample(
   options: GeneratedOption[]
 ): string | undefined {
   const assignments = options
-    .map((option) => ({ option, literal: buildExampleLiteral(option) }))
+    .map((option) => ({ option, literal: pickExampleLiteral(option) }))
     .filter(({ option, literal }) => option.required || literal !== undefined)
     .map(({ option, literal }) => {
       const value = literal ?? buildFallbackLiteral(option);
@@ -417,55 +418,4 @@ function formatTypeAnnotation(option: GeneratedOption, colorize: boolean): strin
     return `${base} ${tint(`/* ${option.formatHint} */`)}`;
   }
   return base;
-}
-
-function buildExampleLiteral(option: GeneratedOption): string | undefined {
-  if (option.enumValues && option.enumValues.length > 0) {
-    return JSON.stringify(option.enumValues[0]);
-  }
-  if (!option.exampleValue) {
-    return undefined;
-  }
-  if (option.type === 'array') {
-    const values = option.exampleValue
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    if (values.length === 0) {
-      return undefined;
-    }
-    return `[${values.map((entry) => JSON.stringify(entry)).join(', ')}]`;
-  }
-  if (option.type === 'number' || option.type === 'boolean') {
-    return option.exampleValue;
-  }
-  try {
-    const parsed = JSON.parse(option.exampleValue);
-    if (typeof parsed === 'number' || typeof parsed === 'boolean') {
-      return option.exampleValue;
-    }
-  } catch {
-    // Ignore JSON parse errors; fall through to quote string values.
-  }
-  return JSON.stringify(option.exampleValue);
-}
-
-function buildFallbackLiteral(option: GeneratedOption): string {
-  switch (option.type) {
-    case 'number':
-      return '1';
-    case 'boolean':
-      return 'true';
-    case 'array':
-      return '["value1"]';
-    default: {
-      if (option.property.toLowerCase().includes('id')) {
-        return JSON.stringify('example-id');
-      }
-      if (option.property.toLowerCase().includes('url')) {
-        return JSON.stringify('https://example.com');
-      }
-      return JSON.stringify('value');
-    }
-  }
 }

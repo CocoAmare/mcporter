@@ -165,6 +165,57 @@ export function buildExampleValue(
   }
 }
 
+export function pickExampleLiteral(option: GeneratedOption): string | undefined {
+  if (option.enumValues && option.enumValues.length > 0) {
+    return JSON.stringify(option.enumValues[0]);
+  }
+  if (!option.exampleValue) {
+    return undefined;
+  }
+  if (option.type === 'array') {
+    const values = option.exampleValue
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (values.length === 0) {
+      return undefined;
+    }
+    return `[${values.map((entry) => JSON.stringify(entry)).join(', ')}]`;
+  }
+  if (option.type === 'number' || option.type === 'boolean') {
+    return option.exampleValue;
+  }
+  try {
+    const parsed = JSON.parse(option.exampleValue);
+    if (typeof parsed === 'number' || typeof parsed === 'boolean') {
+      return option.exampleValue;
+    }
+  } catch {
+    // fall through to quoted string literal
+  }
+  return JSON.stringify(option.exampleValue);
+}
+
+export function buildFallbackLiteral(option: GeneratedOption): string {
+  switch (option.type) {
+    case 'number':
+      return '1';
+    case 'boolean':
+      return 'true';
+    case 'array':
+      return '["value1"]';
+    default: {
+      if (option.property.toLowerCase().includes('id')) {
+        return JSON.stringify('example-id');
+      }
+      if (option.property.toLowerCase().includes('url')) {
+        return JSON.stringify('https://example.com');
+      }
+      return JSON.stringify('value');
+    }
+  }
+}
+
 export function inferType(descriptor: unknown): GeneratedOption['type'] {
   if (!descriptor || typeof descriptor !== 'object') {
     return 'unknown';
@@ -241,4 +292,6 @@ export const toolsTestHelpers = {
   getDescriptorDefault,
   buildPlaceholder,
   buildExampleValue,
+  pickExampleLiteral,
+  buildFallbackLiteral,
 };

@@ -20,13 +20,14 @@ The goals below align `mcporter list`, the TypeScript CLI generator, and any fut
   3. Updated `renderToolCommand()` to include the shared hint via `.addHelpText('afterAll', …)` and aligned tests.
 - **Next**: No further action unless we change the minimum-visible threshold.
 
-## 3. Consolidate Example Literal Selection
+## 3. Consolidate Example Literal Selection *(Completed)*
 
-- **Problem**: CLI uses `buildExampleLiteral`/`buildFallbackLiteral`; generator has `pickExampleValue`.
-- **Plan**:
-  1. Export `pickExampleLiteral(option: GeneratedOption)` from a single module (likely `generate/tools.ts`).
-  2. Update `list-detail-helpers.ts` and `renderToolCommand()` to call this shared helper.
-  3. Expand helper tests to cover arrays/defaults/enum cases once, keeping both consumers aligned.
+- **Problem**: CLI used bespoke `buildExampleLiteral`/`buildFallbackLiteral` logic, while generator helpers guessed examples via `buildExampleValue`, so the call expressions could diverge.
+- **What we did**:
+  1. Moved the literal + fallback logic into `pickExampleLiteral()` / `buildFallbackLiteral()` exported from `src/cli/generate/tools.ts`.
+  2. `buildToolDoc` now imports those helpers, so both `mcporter list` and generated CLIs share the same example arguments.
+  3. Added unit tests in `tests/generate-cli-helpers.test.ts` covering enums, arrays, and ID/url fallbacks to keep behavior locked.
+- **Next**: Consider reusing these helpers for any future docs/export modes that show sample invocations.
 
 ## 4. Usage String Builder Parity *(Completed)*
 
