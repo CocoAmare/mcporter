@@ -20,7 +20,8 @@ import { analyzeConnectionError } from './error-classifier.js';
 import { parseLogLevel } from './logging.js';
 import { createRuntime } from './runtime.js';
 
-export { handleCall, parseCallArguments } from './cli/call-command.js';
+export { parseCallArguments } from './cli/call-arguments.js';
+export { handleCall } from './cli/call-command.js';
 export { handleGenerateCli } from './cli/generate-cli-runner.js';
 export { handleInspectCli } from './cli/inspect-cli-command.js';
 export { extractListFlags, handleList } from './cli/list-command.js';
