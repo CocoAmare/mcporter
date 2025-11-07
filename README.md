@@ -13,7 +13,7 @@ mcporter helps you lean into the "code execution" workflows highlighted in Anthr
 
 ## Quick Start
 
-mcporter auto-discovers the MCP servers you already configured in Cursor, Claude Code/Desktop, Codex, or local overrides. You can try it immediately with `npx`--no installation required.
+mcporter auto-discovers the MCP servers you already configured in Cursor, Claude Code/Desktop, Codex, or local overrides. You can try it immediately with `npx`--no installation required. Need a full command reference (flags, modes, return types)? Check out [docs/cli-reference.md](docs/cli-reference.md).
 ### Call syntax options
 
 ```bash
