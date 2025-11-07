@@ -1,7 +1,7 @@
-# mcporter 🧳
+# MCPorter 🧳
 _TypeScript runtime, CLI, and code-generation toolkit for the Model Context Protocol._
 
-mcporter helps you lean into the "code execution" workflows highlighted in Anthropic's **Code Execution with MCP** guidance: discover the MCP servers already configured on your system, call them directly, compose richer automations in TypeScript, and mint single-purpose CLIs when you need to share a tool. All of that works out of the box -- no boilerplate, no schema spelunking.
+MCPorter helps you lean into the "code execution" workflows highlighted in Anthropic's **Code Execution with MCP** guidance: discover the MCP servers already configured on your system, call them directly, compose richer automations in TypeScript, and mint single-purpose CLIs when you need to share a tool. All of that works out of the box -- no boilerplate, no schema spelunking.
 
 ## Key Capabilities
 
@@ -14,7 +14,7 @@ mcporter helps you lean into the "code execution" workflows highlighted in Anthr
 
 ## Quick Start
 
-mcporter auto-discovers the MCP servers you already configured in Cursor, Claude Code/Desktop, Codex, or local overrides. You can try it immediately with `npx`--no installation required. Need a full command reference (flags, modes, return types)? Check out [docs/cli-reference.md](docs/cli-reference.md).
+MCPorter auto-discovers the MCP servers you already configured in Cursor, Claude Code/Desktop, Codex, or local overrides. You can try it immediately with `npx`--no installation required. Need a full command reference (flags, modes, return types)? Check out [docs/cli-reference.md](docs/cli-reference.md).
 ### Call syntax options
 
 ```bash
@@ -94,7 +94,7 @@ vercel - Vercel MCP (requires OAuth).
   function deploy_to_vercel();
 ```
 
-Required parameters always show; optional parameters stay hidden unless (a) there are only one or two of them alongside fewer than four required fields or (b) you pass `--all-parameters`. Whenever mcporter hides parameters it prints `Optional parameters hidden; run with --all-parameters to view all fields.` so you know how to reveal the full signature. Return types are inferred from the tool schema’s `title`, falling back to omitting the suffix entirely instead of guessing.
+Required parameters always show; optional parameters stay hidden unless (a) there are only one or two of them alongside fewer than four required fields or (b) you pass `--all-parameters`. Whenever MCPorter hides parameters it prints `Optional parameters hidden; run with --all-parameters to view all fields.` so you know how to reveal the full signature. Return types are inferred from the tool schema’s `title`, falling back to omitting the suffix entirely instead of guessing.
 
 ### Context7: fetch docs (no auth required)
 
@@ -156,7 +156,7 @@ npx mcporter call --stdio "bun run ./local-server.ts" --name local-tools
 - **Function-call syntax.** Instead of juggling `--flag value`, you can call tools as `mcporter call 'linear.create_issue(title: "Bug", team: "ENG")'`. The parser supports nested objects/arrays, lets you omit labels when you want to rely on schema order (e.g. `mcporter 'context7.resolve-library-id("react")'`), and surfaces schema validation errors clearly. Deep dive in [docs/call-syntax.md](docs/call-syntax.md).
 - **Flag shorthand still works.** Prefer CLI-style arguments? Stick with `mcporter linear.create_issue title=value team=value`, `title=value`, `title:value`, or even `title: value`—the CLI now normalizes all three forms.
 - **Cheatsheet.** See [docs/tool-calling.md](docs/tool-calling.md) for a quick comparison of every supported call style (auto-inferred verbs, flags, function-calls, and ad-hoc URLs).
-- **Auto-correct.** If you typo a tool name, mcporter inspects the server’s tool catalog, retries when the edit distance is tiny, and otherwise prints a `Did you mean …?` hint. The heuristic (and how to tune it) is captured in [docs/call-heuristic.md](docs/call-heuristic.md).
+- **Auto-correct.** If you typo a tool name, MCPorter inspects the server’s tool catalog, retries when the edit distance is tiny, and otherwise prints a `Did you mean …?` hint. The heuristic (and how to tune it) is captured in [docs/call-heuristic.md](docs/call-heuristic.md).
 - **Richer single-server output.** `mcporter list <server>` now prints TypeScript-style signatures, inline comments, return-shape hints, and command examples that mirror the new call syntax. Optional parameters stay hidden by default—add `--all-parameters` or `--schema` whenever you need the full JSON schema.
 
 
@@ -181,7 +181,7 @@ brew tap steipete/tap
 brew install steipete/tap/mcporter
 ```
 
-> The tap publishes alongside mcporter 0.3.0. If you run into issues with an older tap install, run `brew update` before reinstalling.
+> The tap publishes alongside MCPorter 0.3.0. If you run into issues with an older tap install, run `brew update` before reinstalling.
 
 ## One-shot calls from code
 
@@ -197,7 +197,7 @@ const result = await callOnce({
 console.log(result); // raw MCP envelope
 ```
 
-`callOnce` automatically discovers the selected server (including Cursor/Claude/Codex/Windsurf/VS Code imports), handles OAuth prompts, and closes transports when it finishes. It is ideal for manual runs or wiring mcporter directly into an agent tool hook.
+`callOnce` automatically discovers the selected server (including Cursor/Claude/Codex/Windsurf/VS Code imports), handles OAuth prompts, and closes transports when it finishes. It is ideal for manual runs or wiring MCPorter directly into an agent tool hook.
 
 ## Compose Automations with the Runtime
 
@@ -267,7 +267,7 @@ npx mcporter generate-cli \
 - Add `--bundle [path]` to emit an esbuild bundle alongside the template.
 - `--output <path>` writes the template somewhere specific.
 - `--runtime bun|node` picks the runtime for generated code (Bun required for `--compile`).
-- Add `--compile` to emit a Bun-compiled binary; mcporter cleans up intermediate bundles when you omit `--bundle`.
+- Add `--compile` to emit a Bun-compiled binary; MCPorter cleans up intermediate bundles when you omit `--bundle`.
 
 Every artifact embeds regeneration metadata (generator version, resolved server definition, invocation flags). Use:
 
@@ -318,7 +318,7 @@ See [docs/emit-ts.md](docs/emit-ts.md) for the full flag reference plus inline s
 }
 ```
 
-What mcporter handles for you:
+What MCPorter handles for you:
 
 - `${VAR}`, `${VAR:-fallback}`, and `$env:VAR` interpolation for headers and env entries.
 - Automatic OAuth token caching under `~/.mcporter/<server>/` unless you override `tokenCacheDir`.
