@@ -9,6 +9,13 @@ const FIXTURE_ROOT = path.resolve(__dirname, 'fixtures', 'imports');
 let homedirSpy: { mockRestore(): void } | undefined;
 let fakeHomeDir: string | undefined;
 
+function ensureFakeHomeDir(): string {
+  if (!fakeHomeDir) {
+    throw new Error('fakeHomeDir not initialized');
+  }
+  return fakeHomeDir;
+}
+
 beforeEach(() => {
   fakeHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcporter-home-'));
   homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue(fakeHomeDir);
@@ -56,6 +63,7 @@ describe('config imports', () => {
       configPath,
       rootDir: FIXTURE_ROOT,
     });
+    const homeDir = ensureFakeHomeDir();
 
     const names = servers.map((server) => server.name).sort();
     expect(names).toEqual([
@@ -93,7 +101,7 @@ describe('config imports', () => {
     expect(codexOnly?.command.kind === 'stdio' ? codexOnly.command.command : undefined).toBe('codex-cli');
     expect(codexOnly?.source).toEqual({
       kind: 'import',
-      path: path.join(fakeHomeDir!, '.codex', 'config.toml'),
+      path: path.join(homeDir, '.codex', 'config.toml'),
     });
 
     const windsurfOnly = servers.find((server) => server.name === 'windsurf-only');
@@ -101,16 +109,16 @@ describe('config imports', () => {
     expect(windsurfOnly?.command.kind === 'stdio' ? windsurfOnly.command.command : undefined).toBe('windsurf-cli');
     expect(windsurfOnly?.source).toEqual({
       kind: 'import',
-      path: path.join(fakeHomeDir!, '.codeium', 'windsurf', 'mcp_config.json'),
+      path: path.join(homeDir, '.codeium', 'windsurf', 'mcp_config.json'),
     });
 
     const vscodeOnly = servers.find((server) => server.name === 'vscode-only');
     expect(vscodeOnly?.command.kind).toBe('stdio');
     expect(vscodeOnly?.command.kind === 'stdio' ? vscodeOnly.command.command : undefined).toBe('code-mcp');
     const expectedVscodePaths = [
-      path.join(fakeHomeDir!, 'Library', 'Application Support', 'Code', 'User', 'mcp.json'),
-      path.join(fakeHomeDir!, '.config', 'Code', 'User', 'mcp.json'),
-      path.join(process.env.APPDATA ?? fakeHomeDir!, 'Code', 'User', 'mcp.json'),
+      path.join(homeDir, 'Library', 'Application Support', 'Code', 'User', 'mcp.json'),
+      path.join(homeDir, '.config', 'Code', 'User', 'mcp.json'),
+      path.join(process.env.APPDATA ?? homeDir, 'Code', 'User', 'mcp.json'),
     ];
     expect(vscodeOnly?.source?.kind).toBe('import');
     expect(expectedVscodePaths).toContain(vscodeOnly?.source?.path);
