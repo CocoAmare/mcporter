@@ -791,7 +791,7 @@ export async function handleAuth(runtime: Awaited<ReturnType<typeof createRuntim
       logInfo(`Authorization complete. ${tools.length} tool${tools.length === 1 ? '' : 's'} available.`);
       return;
     } catch (error) {
-      if (attempt === 0 && error instanceof Error && /Unauthorized/i.test(error.message)) {
+      if (attempt === 0 && shouldRetryAuthError(error)) {
         logWarn('Server signaled OAuth after the initial attempt. Retrying with browser flow...');
         continue;
       }
@@ -799,6 +799,14 @@ export async function handleAuth(runtime: Awaited<ReturnType<typeof createRuntim
       throw new Error(`Failed to authorize '${target}': ${message}`);
     }
   }
+}
+
+function shouldRetryAuthError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  if (!message) {
+    return false;
+  }
+  return /unauthorized|invalid[_-]?token|\b(401|403)\b/i.test(message);
 }
 
 function looksLikeHttpUrl(value: string): boolean {
