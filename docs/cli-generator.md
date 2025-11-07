@@ -49,7 +49,7 @@ Create an `mcporter generate-cli` command that produces a standalone CLI for a s
 - Generated CLI depends on the latest `commander` for argument parsing.
 - Default timeout for tool calls is 30 seconds, overridable via `--timeout`.
 - Runtime flag remains (`--runtime bun`) to tailor shebang/usage instructions, but Node.js is the default.
-- Generated CLI embeds the resolved server definition yet honors `--config`/`--server` overrides at execution time.
+- Generated CLI embeds the resolved server definition and always targets that snapshot (no external `--config` or `--server` overrides at runtime).
 
 ## Usage Examples
 
@@ -68,7 +68,8 @@ npx mcporter generate-cli \
   --compile
 
 chmod +x context7
-./context7 list-tools
+./context7
+  # show the embedded help + tool list
 
 # Shareable "one weird trick" for chrome-devtools (no config required)
 npx mcporter generate-cli --command "npx -y chrome-devtools-mcp@latest"
