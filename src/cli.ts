@@ -27,15 +27,15 @@ export { handleInspectCli } from './cli/inspect-cli-command.js';
 export { extractListFlags, handleList } from './cli/list-command.js';
 export { resolveCallTimeout } from './cli/timeouts.js';
 
-// main parses CLI flags and dispatches to list/call commands.
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  if (argv.length === 0) {
+export async function runCli(argv: string[]): Promise<void> {
+  const args = [...argv];
+  if (args.length === 0) {
     printHelp();
     process.exit(1);
+    return;
   }
 
-  const globalFlags = extractFlags(argv, ['--config', '--root', '--log-level']);
+  const globalFlags = extractFlags(args, ['--config', '--root', '--log-level']);
   if (globalFlags['--log-level']) {
     try {
       const parsedLevel = parseLogLevel(globalFlags['--log-level'], getActiveLogLevel());
@@ -44,22 +44,35 @@ async function main(): Promise<void> {
       const message = error instanceof Error ? error.message : String(error);
       logError(message, error instanceof Error ? error : undefined);
       process.exit(1);
+      return;
     }
   }
-  const command = argv.shift();
+  const command = args.shift();
 
   if (!command) {
     printHelp();
     process.exit(1);
+    return;
+  }
+
+  if (isHelpToken(command)) {
+    printHelp();
+    process.exitCode = 0;
+    return;
+  }
+
+  if (isVersionToken(command)) {
+    await printVersion();
+    return;
   }
 
   if (command === 'generate-cli') {
-    await handleGenerateCli(argv, globalFlags);
+    await handleGenerateCli(args, globalFlags);
     return;
   }
 
   if (command === 'inspect-cli') {
-    await handleInspectCli(argv);
+    await handleInspectCli(args);
     return;
   }
 
@@ -70,7 +83,7 @@ async function main(): Promise<void> {
       logger: getActiveLogger(),
     });
     try {
-      await handleEmitTs(runtime, argv);
+      await handleEmitTs(runtime, args);
     } finally {
       await runtime.close().catch(() => {});
     }
@@ -83,7 +96,7 @@ async function main(): Promise<void> {
     logger: getActiveLogger(),
   });
 
-  const inference = inferCommandRouting(command, argv, runtime.getDefinitions());
+  const inference = inferCommandRouting(command, args, runtime.getDefinitions());
   if (inference.kind === 'abort') {
     process.exitCode = inference.exitCode;
     return;
@@ -143,9 +156,13 @@ async function main(): Promise<void> {
       }
     }
   }
-
   printHelp(`Unknown command '${resolvedCommand}'.`);
   process.exit(1);
+}
+
+// main parses CLI flags and dispatches to list/call commands.
+async function main(): Promise<void> {
+  await runCli(process.argv.slice(2));
 }
 
 // printHelp explains available commands and global flags.
@@ -193,6 +210,27 @@ Examples:
   npx mcporter 'https://www.shadcn.io/api/mcp.getComponents()'
   npx mcporter generate-cli --from dist/context7.js
 `);
+}
+
+async function printVersion(): Promise<void> {
+  try {
+    const packageJsonPath = new URL('../package.json', import.meta.url);
+    const buffer = await fsPromises.readFile(packageJsonPath, 'utf8');
+    const pkg = JSON.parse(buffer) as { version?: string };
+    console.log(pkg.version ?? '0.0.0');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logError(`Failed to read mcporter version: ${message}`, error instanceof Error ? error : undefined);
+    process.exit(1);
+  }
+}
+
+function isHelpToken(token: string): boolean {
+  return token === '--help' || token === '-h' || token === 'help';
+}
+
+function isVersionToken(token: string): boolean {
+  return token === '--version' || token === '-v' || token === '-V';
 }
 
 if (process.env.MCPORTER_DISABLE_AUTORUN !== '1') {
