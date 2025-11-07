@@ -2,32 +2,30 @@
 
 ## [Unreleased]
 
-- CLI ergonomics received a major polish: `mcporter list` now streams spinner updates, renders TypeScript-style signatures (shared with generated CLIs), and prints inline call examples. Command inference auto-detects `list`/`call`/`auth`, the new function-call parser supports unlabeled positional arguments, and colon-delimited flags (`key:value`) are accepted alongside `key=value`.
-- Ad-hoc workflows are safer—`--http-url` / bare URLs auto-register temporary servers, but we now reuse existing definitions (and their OAuth tokens/redirect URIs) when the URL matches a configured entry such as Vercel. `mcporter auth <url>` piggybacks on the same logic, writes persisted entries, and retries once if a server flips into OAuth mode mid-flight.
-- OAuth detection was hardened: ad-hoc HTTP servers that return 401/403 are automatically promoted to `auth: "oauth"`, and we broadened the unauthorized heuristic so Supabase/Vercel/GitHub style responses trigger the retry. Known provider limitations (Supabase scope lock-down, GitHub/Vercel dynamic registration) are documented in `docs/known-issues.md` and `docs/supabase-auth-issue.md`.
-- Added `docs/tool-calling.md` and refreshed README/spec sections so every call style (flags, function expressions, shorthand) is documented, plus new unit tests that mirror the CLI behavior.
-- Generated CLIs now embed their metadata (generator version, server definition, invocation flags) and expose it via a hidden `__mcporter_inspect` command. `mcporter inspect-cli` / `mcporter regenerate-cli` now talk to the artifact directly, while legacy `.metadata.json` sidecars remain supported for backwards compatibility.
+- _No changes yet._
 
-- Swapped the `--required-only` / `--include-optional` pair for a single `--all-parameters` flag, updated the CLI hinting copy, and documented the new workflow across README/spec/call-syntax.
-- Refined single-server output: doc blocks insert a blank line before `@param`, long sentences wrap to 100 characters, the server summary line prints after the tool details, and color tinting now keeps `function` keywords grey while parameter labels highlight the `@param` and name.
-- `Examples:` now shows a single, ellipsized `mcporter call …` entry (unless the call already fits in ~80 characters) so verbose argument lists don't dominate the output.
-- Reused the new formatter inside `mcporter generate-cli`, so command summaries (and help) display the same TypeScript-style signatures you see in `mcporter list`.
-- Guaranteed that default listings always show at least five parameters (even if every field is optional) before summarising the rest, and added compact summaries (`// optional (N): …`).
-- Added `src/cli/list-detail-helpers.ts` plus dedicated unit tests (`tests/list-detail-helpers.test.ts`) covering wrapping, param selection, and optional summaries; introduced an inline snapshot test for a complex Linear server to prevent regressions in the CLI formatter.
-- Exported the identifier normalization helpers so other modules can reuse the shared Levenshtein logic without duplicate implementations.
-- Added a shared `extractEphemeralServerFlags` helper so `list`, `call`, and `auth` parse ad-hoc transports consistently, extended `mcporter auth` to accept bare URLs/`--http-url`/`--stdio`, and taught single-server listings to hint `mcporter auth https://…` when a 401 occurs. Docs (`README.md`, `docs/adhoc.md`, `docs/local.md`, `docs/call-heuristic.md`) and new tests (`tests/cli-auth.test.ts`, `tests/cli-ephemeral-flags.test.ts`, expanded `tests/cli-list.test.ts`) cover the workflow.
-- Flag-style tool invocations now accept `key:value` and `key: value` alongside the existing `key=value` form, making commands like `mcporter context7.resolve-library-id libraryName:value` Just Work. Documented in the README/call syntax guide and covered by `tests/cli-call.test.ts`.
-- Added `docs/tool-calling.md`, a cheatsheet summarizing every supported invocation pattern (inferred verbs, flag styles, function-call syntax, and ad-hoc URL workflows).
-- Function-call syntax now allows unlabeled arguments; mcporter maps them to schema order after any explicitly named parameters (e.g. `mcporter 'context7.resolve-library-id("react")'`). Tests in `tests/cli-call.test.ts` cover the positional fallback.
-- Ad-hoc HTTP servers that respond with 401/403 are automatically promoted to OAuth mode (no manual config edits needed) and trigger the browser sign-in flow on the next attempt. The helper is covered in `tests/runtime-oauth-detection.test.ts`, and the workflow is documented in `README.md` / `docs/adhoc.md` / `docs/spec.md`.
+## [0.3.0] - 2025-11-07
 
-## [0.3.0] - 2025-11-06
+### CLI & runtime
+- Added configurable log levels (`--log-level` / `MCPORTER_LOG_LEVEL`) that default to `warn`, promoting noisy transport fallbacks to warnings so critical issues still surface.
+- Forced the CLI to exit cleanly after shutdown (opt out with `MCPORTER_NO_FORCE_EXIT`) and patched `StdioClientTransport` so stdio MCP servers no longer leave Node handles hanging; stderr from stdio servers is buffered and replayed via `MCPORTER_STDIO_LOGS=1` or whenever a server exits with a non-zero status.
+- Documented the tmux workflow (`tmux new-session -- pnpm mcporter:list`) so long-running list/debug sessions remain observable when diagnosing hung transports.
 
-- Added configurable log levels (`--log-level` flag and `MCPORTER_LOG_LEVEL`) with a default of `warn`, and promoted transport fallbacks to warnings so important failures still surface at the quieter default.
-- Forced the CLI to exit cleanly after shutdown (new `MCPORTER_NO_FORCE_EXIT` opt-out) and patched `StdioClientTransport` locally so stdio MCP servers do not leave Node handles hanging. Documented the tmux workflow for hang debugging.
-- Reworked `mcporter list` output: the spinner no longer gets clobbered, summaries print once discovery completes, and stdio server stderr is buffered (surface via `MCPORTER_STDIO_LOGS=1` or on non-zero exits). Single-server listings now show TypeScript-style signatures, return hints, and inline examples that match the new function-style call syntax.
-- Added ad-hoc server support across `mcporter list`/`call`: point at any `--http-url` or `--stdio` command (plus `--env`, `--cwd`, `--name`, `--persist`) without touching config, and persist the generated definition when desired. Documented the workflow in `docs/adhoc.md`.
-- Upgraded `mcporter call` with JavaScript-like call expressions (`mcporter call 'linear.create_issue(title: "Bug", team: "ENG")'`) and an auto-correction heuristic that retries obvious typos or suggests the closest tool when confidence is low. The behaviour is covered in `docs/call-syntax.md` and `docs/call-heuristic.md`.
+### Discovery, calling, and ad-hoc workflows
+- Rebuilt `mcporter list`: spinner updates stream live, summaries print only after discovery completes, and single-server views now render TypeScript-style doc blocks, inline examples, inferred return hints, and compact `// optional (N): …` summaries. The CLI guarantees at least five parameters before truncating, introduced a single `--all-parameters` switch (replacing the `--required-only` / `--include-optional` pair), and shares its formatter with `mcporter generate-cli` so signatures are consistent everywhere.
+- Verb inference and parser upgrades let bare server names dispatch to `list`, dotted invocations jump straight to `call`, colon-delimited flags (`key:value` / `key: value`) sit alongside `key=value`, and the JavaScript-like call syntax now supports unlabeled positional arguments plus typo correction heuristics when tool names are close but not exact.
+- Ad-hoc workflows are significantly safer: `--http-url` / `--stdio` definitions (with `--env`, `--cwd`, `--name`, `--persist`) work across `list`, `call`, and `auth`, mcporter reuses existing config entries when a URL matches (preserving OAuth tokens / redirect URIs), and `mcporter auth <url>` piggybacks on the same resolver to persist entries or retry when a server flips modes mid-flight.
+- Hardened OAuth detection automatically promotes ad-hoc HTTP servers that return 401/403 to `auth: "oauth"`, broadens the unauthorized heuristic for Supabase/Vercel/GitHub-style responses, and performs a one-time retry whenever a server switches into OAuth mode while you are connecting.
+
+### Code generation & metadata
+- Generated CLIs now embed their metadata (generator version, resolved server definition, invocation flags) behind a hidden `__mcporter_inspect` command. `mcporter inspect-cli` / `mcporter regenerate-cli` read directly from the artifact, while legacy `.metadata.json` sidecars remain as a fallback for older binaries.
+- Shared the TypeScript signature formatter between `mcporter list` and `mcporter generate-cli`, ensuring command summaries, CLI hints, and generator help stay pixel-perfect and are backed by new snapshot/unit tests.
+- Introduced `mcporter emit-ts`, a codegen command that emits `.d.ts` tool interfaces or ready-to-run client wrappers (`--mode types|client`, `--include-optional`) using the same doc/comment data that powers the CLI, so agents/tests can consume MCP servers with strong TypeScript types.
+
+### Documentation & references
+- Added `docs/tool-calling.md`, `docs/call-syntax.md`, and `docs/call-heuristic.md` to capture every invocation style (flags, function expressions, inferred verbs) plus the typo-correction rules.
+- Expanded the ad-hoc/OAuth story across `README.md`, `docs/adhoc.md`, `docs/local.md`, `docs/known-issues.md`, and `docs/supabase-auth-issue.md`, detailing when servers auto-promote to OAuth, how retries behave, and how to persist generated definitions safely.
+- Updated the README, CLI reference, and generator docs to cover the new `--all-parameters` flag, list formatter, metadata embedding, tmux debugging, and the `mcporter emit-ts` workflow.
 
 ## [0.2.0] - 2025-11-06
 
