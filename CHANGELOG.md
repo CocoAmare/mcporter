@@ -13,9 +13,6 @@
 - Cursor imports now cover both workspace and user `.cursor/mcp.json` files plus the platform-specific `Cursor/User/mcp.json` directories, and the VS Code/Windsurf walkers dedupe paths so editor-managed MCP servers are auto-discovered consistently across macOS, Linux, and Windows.
 - Windows installs now enumerate `.cursor/mcp.json`, `%USERPROFILE%\\.cursor\\mcp.json`, `%APPDATA%\\Cursor\\User\\mcp.json`, `.vscode/mcp.json`, and the Windsurf/Codeium directories automatically, while STDIO transports on Windows tear down entire process trees via `powershell.exe Get-CimInstance Win32_Process` to avoid orphaned child servers.
 
-### Code generation
-- Bundled CLIs now stage `jsonc-parser` alongside `commander`/`mcporter`, preventing `Cannot find module './impl/format'` errors when `generate-cli --bundle` runs inside temporary or dependency-less directories.
-
 ## [0.4.5] - 2025-11-10
 
 ### CLI & runtime
