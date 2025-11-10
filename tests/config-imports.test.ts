@@ -33,6 +33,16 @@ beforeEach(() => {
   fs.mkdirSync(path.dirname(targetWindsurf), { recursive: true });
   fs.copyFileSync(sourceWindsurf, targetWindsurf);
 
+  const sourceOpencode = path.join(FIXTURE_ROOT, '.config', 'opencode', 'opencode.jsonc');
+  const targetOpencode = path.join(fakeHomeDir, '.config', 'opencode', 'opencode.jsonc');
+  fs.mkdirSync(path.dirname(targetOpencode), { recursive: true });
+  fs.copyFileSync(sourceOpencode, targetOpencode);
+
+  const sourceClaudeSettings = path.join(FIXTURE_ROOT, 'home', '.claude', 'settings.json');
+  const targetClaudeSettings = path.join(fakeHomeDir, '.claude', 'settings.json');
+  fs.mkdirSync(path.dirname(targetClaudeSettings), { recursive: true });
+  fs.copyFileSync(sourceClaudeSettings, targetClaudeSettings);
+
   const sourceVscode = path.join(FIXTURE_ROOT, 'Library', 'Application Support', 'Code', 'User', 'mcp.json');
   const vscodeTargets = [
     path.join(fakeHomeDir, 'Library', 'Application Support', 'Code', 'User', 'mcp.json'),
@@ -50,6 +60,8 @@ afterEach(() => {
   process.env.HOME = undefined;
   process.env.USERPROFILE = undefined;
   process.env.APPDATA = undefined;
+  process.env.OPENCODE_CONFIG = undefined;
+  process.env.OPENCODE_CONFIG_DIR = undefined;
   if (fakeHomeDir) {
     fs.rmSync(fakeHomeDir, { recursive: true, force: true });
     fakeHomeDir = undefined;
@@ -67,10 +79,16 @@ describe('config imports', () => {
 
     const names = servers.map((server) => server.name).sort();
     expect(names).toEqual([
+      'claude-home',
+      'claude-local',
       'claude-only',
+      'claude-overridden',
+      'claude-shared',
       'codex-only',
       'cursor-only',
       'local-only',
+      'opencode-only',
+      'opencode-user-only',
       'shared',
       'vscode-only',
       'windsurf-only',
@@ -115,6 +133,48 @@ describe('config imports', () => {
       path: path.join(homeDir, '.codeium', 'windsurf', 'mcp_config.json'),
     });
 
+    const claudeLocal = servers.find((server) => server.name === 'claude-local');
+    expect(claudeLocal?.command.kind).toBe('stdio');
+    expect(claudeLocal?.command.kind === 'stdio' ? claudeLocal.command.command : undefined).toBe('claude-local-cli');
+    expect(claudeLocal?.source).toEqual({
+      kind: 'import',
+      path: path.join(FIXTURE_ROOT, '.claude', 'settings.local.json'),
+    });
+
+    const claudeOverridden = servers.find((server) => server.name === 'claude-overridden');
+    expect(claudeOverridden?.command.kind).toBe('stdio');
+    expect(claudeOverridden?.command.kind === 'stdio' ? claudeOverridden.command.command : undefined).toBe(
+      'claude-local-cli'
+    );
+    expect(claudeOverridden?.source).toEqual({
+      kind: 'import',
+      path: path.join(FIXTURE_ROOT, '.claude', 'settings.local.json'),
+    });
+
+    const claudeShared = servers.find((server) => server.name === 'claude-shared');
+    expect(claudeShared?.command.kind).toBe('stdio');
+    expect(claudeShared?.command.kind === 'stdio' ? claudeShared.command.command : undefined).toBe('claude-shared-cli');
+    expect(claudeShared?.source).toEqual({
+      kind: 'import',
+      path: path.join(FIXTURE_ROOT, '.claude', 'settings.json'),
+    });
+
+    const claudeHome = servers.find((server) => server.name === 'claude-home');
+    expect(claudeHome?.command.kind).toBe('stdio');
+    expect(claudeHome?.command.kind === 'stdio' ? claudeHome.command.command : undefined).toBe('claude-home-cli');
+    expect(claudeHome?.source).toEqual({
+      kind: 'import',
+      path: path.join(homeDir, '.claude', 'settings.json'),
+    });
+
+    const opencodeOnly = servers.find((server) => server.name === 'opencode-only');
+    expect(opencodeOnly?.command.kind).toBe('stdio');
+    expect(opencodeOnly?.command.kind === 'stdio' ? opencodeOnly.command.command : undefined).toBe('opencode-cli');
+    expect(opencodeOnly?.source).toEqual({
+      kind: 'import',
+      path: path.join(FIXTURE_ROOT, 'opencode.jsonc'),
+    });
+
     const vscodeOnly = servers.find((server) => server.name === 'vscode-only');
     expect(vscodeOnly?.command.kind).toBe('stdio');
     expect(vscodeOnly?.command.kind === 'stdio' ? vscodeOnly.command.command : undefined).toBe('code-mcp');
@@ -125,6 +185,27 @@ describe('config imports', () => {
     ];
     expect(vscodeOnly?.source?.kind).toBe('import');
     expect(expectedVscodePaths).toContain(vscodeOnly?.source?.path);
+  });
+
+  it('falls back to user-level Claude settings when the project lacks .claude files', async () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mcporter-claude-home-'));
+    try {
+      const tempConfigDir = path.join(tempRoot, 'config');
+      fs.mkdirSync(tempConfigDir, { recursive: true });
+      fs.copyFileSync(path.join(FIXTURE_ROOT, 'config', 'mcporter.json'), path.join(tempConfigDir, 'mcporter.json'));
+
+      const servers = await loadServerDefinitions({
+        configPath: path.join(tempConfigDir, 'mcporter.json'),
+        rootDir: tempRoot,
+      });
+      const claudeHome = servers.find((server) => server.name === 'claude-home');
+      expect(claudeHome?.source).toEqual({
+        kind: 'import',
+        path: path.join(ensureFakeHomeDir(), '.claude', 'settings.json'),
+      });
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it('loads Codex servers from the user config when the project lacks a .codex directory', async () => {
@@ -161,6 +242,66 @@ describe('config imports', () => {
         path: path.join(ensureFakeHomeDir(), '.codex', 'config.toml'),
       });
     } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to the user OpenCode config when no project file is present', async () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mcporter-opencode-home-'));
+    try {
+      const configDir = path.join(tempRoot, 'config');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.copyFileSync(path.join(FIXTURE_ROOT, 'config', 'mcporter.json'), path.join(configDir, 'mcporter.json'));
+      const servers = await loadServerDefinitions({
+        configPath: path.join(configDir, 'mcporter.json'),
+        rootDir: tempRoot,
+      });
+      const opencodeHomeOnly = servers.find((server) => server.name === 'opencode-user-only');
+      expect(opencodeHomeOnly).toBeDefined();
+      const homeDir = ensureFakeHomeDir();
+      const expectedPath =
+        process.platform === 'win32'
+          ? path.join(process.env.APPDATA ?? path.join(homeDir, 'AppData', 'Roaming'), 'opencode', 'opencode.jsonc')
+          : path.join(homeDir, '.config', 'opencode', 'opencode.jsonc');
+      expect(opencodeHomeOnly?.source).toEqual({
+        kind: 'import',
+        path: expectedPath,
+      });
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('honors the OPENCODE_CONFIG override', async () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mcporter-opencode-env-'));
+    const tempConfig = path.join(tempRoot, 'custom-opencode.jsonc');
+    fs.mkdirSync(tempRoot, { recursive: true });
+    fs.writeFileSync(
+      tempConfig,
+      JSON.stringify(
+        {
+          mcp: {
+            'opencode-env-only': {
+              command: 'env-cli',
+              args: ['--stdio'],
+            },
+          },
+        },
+        null,
+        2
+      )
+    );
+    process.env.OPENCODE_CONFIG = tempConfig;
+    try {
+      const servers = await loadServerDefinitions({ rootDir: FIXTURE_ROOT });
+      const envServer = servers.find((server) => server.name === 'opencode-env-only');
+      expect(envServer).toBeDefined();
+      expect(envServer?.source).toEqual({
+        kind: 'import',
+        path: tempConfig,
+      });
+    } finally {
+      process.env.OPENCODE_CONFIG = undefined;
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
   });

@@ -4,6 +4,15 @@
 
 _No changes yet._
 
+## [0.4.3] - 2025-11-10
+
+### CLI & runtime
+- Added OpenCode imports (project `opencode.json[c]`, `OPENCODE_CONFIG_DIR`, user config, and the `OPENCODE_CONFIG` override) plus JSONC parsing so `mcporter list/config` can auto-discover servers defined in OpenCode.
+- Claude Code imports now honor `.claude/settings.local.json` and `.claude/settings.json` ahead of the legacy `mcp.json`, and we skip entries that lack a URL/command (e.g., permissions blocks) so malformed settings no longer break the merge.
+
+### Docs
+- Documented the full import matrix (including OpenCode + Claude settings hierarchy) in `docs/mcp-import.md`, `docs/import.md`, and `docs/config.md`.
+
 ## [0.4.2] - 2025-11-09
 
 ### CLI & runtime

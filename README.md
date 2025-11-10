@@ -5,7 +5,7 @@ MCPorter helps you lean into the "code execution" workflows highlighted in Anthr
 
 ## Key Capabilities
 
-- **Zero-config discovery.** `createRuntime()` loads `config/mcporter.json`, merges Cursor/Claude/Codex/Windsurf/VS Code imports, expands `${ENV}` placeholders, and pools connections so you can reuse transports across multiple calls.
+- **Zero-config discovery.** `createRuntime()` loads `config/mcporter.json`, merges Cursor/Claude/Codex/Windsurf/OpenCode/VS Code imports, expands `${ENV}` placeholders, and pools connections so you can reuse transports across multiple calls.
 - **One-command CLI generation.** `mcporter generate-cli` turns any MCP server definition into a ready-to-run CLI, with optional bundling/compilation and metadata for easy regeneration.
 - **Typed tool clients.** `mcporter emit-ts` emits `.d.ts` interfaces or ready-to-run client wrappers so agents/tests can call MCP servers with strong TypeScript types without hand-writing plumbing.
 - **Friendly composable API.** `createServerProxy()` exposes tools as ergonomic camelCase methods, automatically applies JSON-schema defaults, validates required arguments, and hands back a `CallResult` with `.text()`, `.markdown()`, `.json()`, and `.content()` helpers.
@@ -206,7 +206,7 @@ const result = await callOnce({
 console.log(result); // raw MCP envelope
 ```
 
-`callOnce` automatically discovers the selected server (including Cursor/Claude/Codex/Windsurf/VS Code imports), handles OAuth prompts, and closes transports when it finishes. It is ideal for manual runs or wiring MCPorter directly into an agent tool hook.
+`callOnce` automatically discovers the selected server (including Cursor/Claude/Codex/Windsurf/OpenCode/VS Code imports), handles OAuth prompts, and closes transports when it finishes. It is ideal for manual runs or wiring MCPorter directly into an agent tool hook.
 
 ## Compose Automations with the Runtime
 
@@ -347,7 +347,7 @@ Run `mcporter config …` via your package manager (pnpm, npm, npx, etc.) when y
 			"env": { "npm_config_loglevel": "error" }
 		}
 	},
-	"imports": ["cursor", "claude-code", "claude-desktop", "codex"]
+	"imports": ["cursor", "claude-code", "claude-desktop", "codex", "windsurf", "opencode", "vscode"]
 }
 ```
 
@@ -356,7 +356,7 @@ What MCPorter handles for you:
 - `${VAR}`, `${VAR:-fallback}`, and `$env:VAR` interpolation for headers and env entries.
 - Automatic OAuth token caching under `~/.mcporter/<server>/` unless you override `tokenCacheDir`.
 - Stdio commands inherit the directory of the file that defined them (imports or local config).
-- Import precedence matches the array order; omit `imports` to use the default `["cursor", "claude-code", "claude-desktop", "codex"]`.
+- Import precedence matches the array order; omit `imports` to use the default `["cursor", "claude-code", "claude-desktop", "codex", "windsurf", "opencode", "vscode"]`.
 
 Provide `configPath` or `rootDir` to CLI/runtime calls when you juggle multiple config files side by side.
 

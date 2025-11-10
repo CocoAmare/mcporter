@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "opencode-only": {
+      "description": "Project-level OpenCode server",
+      "type": "stdio",
+      "command": "opencode-cli",
+      "args": ["serve"]
+    }
+  }
+}

@@ -1,10 +1,26 @@
 import { z } from 'zod';
 
-export const ImportKindSchema = z.enum(['cursor', 'claude-code', 'claude-desktop', 'codex', 'windsurf', 'vscode']);
+export const ImportKindSchema = z.enum([
+  'cursor',
+  'claude-code',
+  'claude-desktop',
+  'codex',
+  'windsurf',
+  'opencode',
+  'vscode',
+]);
 
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
-export const DEFAULT_IMPORTS: ImportKind[] = ['cursor', 'claude-code', 'claude-desktop', 'codex', 'windsurf', 'vscode'];
+export const DEFAULT_IMPORTS: ImportKind[] = [
+  'cursor',
+  'claude-code',
+  'claude-desktop',
+  'codex',
+  'windsurf',
+  'opencode',
+  'vscode',
+];
 
 export const RawEntrySchema = z.object({
   description: z.string().optional(),

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse as parseToml } from '@iarna/toml';
+import { parse as parseJsonWithComments, printParseErrorCode, type ParseError } from 'jsonc-parser';
 import type { ImportKind, RawEntry } from './config-schema.js';
 import { RawEntrySchema } from './config-schema.js';
 
@@ -11,17 +12,23 @@ export function pathsForImport(kind: ImportKind, rootDir: string): string[] {
     case 'cursor':
       return [path.resolve(rootDir, '.cursor', 'mcp.json'), defaultCursorUserConfigPath()];
     case 'claude-code':
-      return [
+      return dedupePaths([
+        path.resolve(rootDir, '.claude', 'settings.local.json'),
+        path.resolve(rootDir, '.claude', 'settings.json'),
         path.resolve(rootDir, '.claude', 'mcp.json'),
+        path.join(os.homedir(), '.claude', 'settings.local.json'),
+        path.join(os.homedir(), '.claude', 'settings.json'),
         path.join(os.homedir(), '.claude', 'mcp.json'),
         path.join(os.homedir(), '.claude.json'),
-      ];
+      ]);
     case 'claude-desktop':
       return [defaultClaudeDesktopConfigPath()];
     case 'codex':
       return [path.resolve(rootDir, '.codex', 'config.toml'), path.join(os.homedir(), '.codex', 'config.toml')];
     case 'windsurf':
       return [defaultWindsurfConfigPath()];
+    case 'opencode':
+      return opencodeConfigPaths(rootDir);
     case 'vscode':
       return defaultVscodeConfigPaths();
     default:
@@ -45,7 +52,7 @@ export async function readExternalEntries(filePath: string): Promise<Map<string,
       return extractFromCodexConfig(parsed);
     }
 
-    const parsed = JSON.parse(buffer) as unknown;
+    const parsed = parseJsonBuffer(buffer);
     return extractFromMcpJson(parsed);
   } catch (error) {
     if (shouldIgnoreParseError(error)) {
@@ -71,6 +78,9 @@ function extractFromMcpJson(raw: unknown): Map<string, RawEntry> {
     }
     if ('servers' in raw && raw.servers && typeof raw.servers === 'object') {
       return raw.servers as Record<string, unknown>;
+    }
+    if ('mcp' in raw && raw.mcp && typeof raw.mcp === 'object') {
+      return raw.mcp as Record<string, unknown>;
     }
     return raw as Record<string, unknown>;
   })();
@@ -156,6 +166,13 @@ function convertExternalEntry(value: Record<string, unknown>): RawEntry | null {
     result.args = value.args;
   }
 
+  const hasHttpTarget = typeof result.baseUrl === 'string';
+  const hasCommandTarget =
+    typeof result.command === 'string' || (Array.isArray(result.command) && result.command.length > 0);
+  if (!hasHttpTarget && !hasCommandTarget) {
+    return null;
+  }
+
   const parsed = RawEntrySchema.safeParse(result);
   return parsed.success ? parsed.data : null;
 }
@@ -212,6 +229,54 @@ function defaultWindsurfConfigPath(): string {
   return path.join(os.homedir(), '.codeium', 'windsurf', 'mcp_config.json');
 }
 
+function opencodeConfigPaths(rootDir: string): string[] {
+  const paths: string[] = [];
+  const explicitConfig = process.env.OPENCODE_CONFIG;
+  if (explicitConfig && explicitConfig.length > 0) {
+    paths.push(explicitConfig);
+  }
+
+  paths.push(path.resolve(rootDir, 'opencode.jsonc'), path.resolve(rootDir, 'opencode.json'));
+
+  const configDir = process.env.OPENCODE_CONFIG_DIR;
+  if (configDir && configDir.length > 0) {
+    paths.push(path.join(configDir, 'opencode.jsonc'), path.join(configDir, 'opencode.json'));
+  }
+
+  for (const dir of defaultOpencodeConfigDirs()) {
+    paths.push(path.join(dir, 'opencode.jsonc'), path.join(dir, 'opencode.json'));
+  }
+
+  return dedupePaths(paths);
+}
+
+function defaultOpencodeConfigDirs(): string[] {
+  const dirs: string[] = [];
+  const xdg = process.env.XDG_CONFIG_HOME;
+  if (xdg && xdg.length > 0) {
+    dirs.push(path.join(xdg, 'opencode'));
+  } else if (process.platform === 'win32') {
+    const appData = process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming');
+    dirs.push(path.join(appData, 'opencode'));
+  } else {
+    dirs.push(path.join(os.homedir(), '.config', 'opencode'));
+  }
+  return dirs;
+}
+
+function dedupePaths(paths: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const candidate of paths) {
+    if (!candidate || seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    result.push(candidate);
+  }
+  return result;
+}
+
 function defaultVscodeConfigPaths(): string[] {
   if (process.platform === 'darwin') {
     return [
@@ -265,4 +330,15 @@ function shouldIgnoreParseError(error: unknown): boolean {
     return false;
   }
   return 'fromTOML' in error;
+}
+
+function parseJsonBuffer(buffer: string): unknown {
+  const errors: ParseError[] = [];
+  const parsed = parseJsonWithComments(buffer, errors, { allowTrailingComma: true, disallowComments: false });
+  if (errors.length > 0) {
+    const { error, offset } = errors[0];
+    const message = `${printParseErrorCode(error)}${typeof offset === 'number' ? ` at offset ${offset}` : ''}`;
+    throw new SyntaxError(message);
+  }
+  return parsed;
 }

@@ -29,7 +29,7 @@ See https://github.com/sweetistics/mcporter/blob/main/docs/config.md for config 
 # Configuration Guide
 
 ## Overview
-mcporter keeps three configuration buckets in sync: repository-scoped JSON (`config/mcporter.json`), imported editor configs (Cursor, Claude, Codex, Windsurf, VS Code), and ad-hoc definitions supplied on the CLI. This guide explains how those sources merge, how to mutate them with `mcporter config ...`, and the safety rails around OAuth, env interpolation, and persistence.
+mcporter keeps three configuration buckets in sync: repository-scoped JSON (`config/mcporter.json`), imported editor configs (Cursor, Claude, Codex, Windsurf, OpenCode, VS Code), and ad-hoc definitions supplied on the CLI. This guide explains how those sources merge, how to mutate them with `mcporter config ...`, and the safety rails around OAuth, env interpolation, and persistence.
 
 ## Quick Start
 1. Create `config/mcporter.json` at the repo root:
@@ -42,7 +42,7 @@ mcporter keeps three configuration buckets in sync: repository-scoped JSON (`con
          "headers": { "Authorization": "Bearer ${LINEAR_API_KEY}" }
        }
      },
-     "imports": ["cursor", "claude-code", "codex"]
+     "imports": ["cursor", "claude-code", "claude-desktop", "codex", "windsurf", "opencode", "vscode"]
    }
    ```
 2. Run `mcporter list linear` (or `mcporter config list linear`) to make sure the runtime can reach it.
@@ -56,7 +56,7 @@ mcporter builds a merged view of all known servers before executing any command.
 | --- | --- | --- |
 | 1 | Explicit `--http-url`, `--stdio`, or bare URL passed to commands | Highest priority, never cached unless `--persist` is supplied. Requires `--allow-http` for plain HTTP URLs. |
 | 2 | `config/mcporter.json` (or the file passed via `--config`) | Default path is `<root>/config/mcporter.json`; missing file returns an empty config so commands continue to work. |
-| 3 | Imports listed in `"imports"` | When you omit `imports`, mcporter loads `['cursor','claude-code','claude-desktop','codex','windsurf','vscode']`. When you specify a non-empty array, mcporter appends any omitted defaults after your list so shared presets remain available. |
+| 3 | Imports listed in `"imports"` | When you omit `imports`, mcporter loads `['cursor','claude-code','claude-desktop','codex','windsurf','opencode','vscode']`. When you specify a non-empty array, mcporter appends any omitted defaults after your list so shared presets remain available. |
 
 Rules:
 - Later sources never override earlier ones. Local config always wins over imports; ad-hoc descriptors override both for the duration of a command.
@@ -91,10 +91,11 @@ Rules:
 ### `mcporter config import <kind>`
 - Displays (and optionally copies) entries from editor-specific configs:
   - `cursor`: `.cursor/mcp.json` in the repo, falling back to `~/.config/Cursor/User/mcp.json` (or `%APPDATA%/Cursor/User` on Windows).
-  - `claude-code`: `<root>/.claude/mcp.json`, `~/.claude/mcp.json`, then `~/.claude.json`.
+  - `claude-code`: `<root>/.claude/settings.local.json`, `<root>/.claude/settings.json`, `<root>/.claude/mcp.json`, then `~/.claude/settings.json`, `~/.claude/mcp.json`, `~/.claude.json`. `settings.local.json` is meant for untracked per-developer overrides, while `settings.json` is the shared project config.citeturn0search0
   - `claude-desktop`: platform-specific `Claude/claude_desktop_config.json` paths.
   - `codex`: `<root>/.codex/config.toml`, then `~/.codex/config.toml`.
   - `windsurf`: Codeium’s Windsurf config under `%APPDATA%/Codeium/windsurf/mcp_config.json` or `~/.codeium/windsurf/mcp_config.json`.
+  - `opencode`: Honors `OPENCODE_CONFIG` when set, then `<root>/opencode.json(c)`, `OPENCODE_CONFIG_DIR/opencode.json(c)`, and finally `${XDG_CONFIG_HOME:-~/.config}/opencode/opencode.json(c)` (or `%APPDATA%/opencode/opencode.json(c)` on Windows). Both `.json` and `.jsonc` extensions are supported.
   - `vscode`: `Code/User/mcp.json` (stable + Insiders) inside the OS-appropriate config directory.
 - `--copy` writes selected entries into your local config; `--filter <glob>` narrows the import list; `--path <file>` lets you point at bespoke locations.
 

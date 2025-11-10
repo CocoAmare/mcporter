@@ -1,6 +1,6 @@
 {
   "name": "mcporter",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "TypeScript runtime and CLI for connecting to configured Model Context Protocol servers.",
   "type": "module",
   "main": "dist/index.js",
@@ -42,6 +42,7 @@
     "acorn": "^8.15.0",
     "commander": "^12.1.0",
     "es-toolkit": "^1.41.0",
+    "jsonc-parser": "^3.3.1",
     "ora": "^8.0.1",
     "rolldown": "^1.0.0-beta.47",
     "zod": "^3.25.76"
