@@ -69,4 +69,26 @@ read_when:
 5. **Auto-detection + env overrides:** Hook into command selectors to decide when to proxy.
 6. **Tests + docs:** Add Vitest coverage, update README/cli reference snippets, and keep this doc synced with actual behavior.
 
+## Logging & Diagnostics
+
+You can capture the daemon’s stdout/stderr (and per-server call traces) when debugging long-lived STDIO servers:
+
+- `mcporter daemon start --log` enables logging with the default path `~/.mcporter/daemon/daemon-<config-hash>.log`. Use `--log-file <path>` to override it.
+- `--log-servers chrome-devtools,mobile-mcp` restricts per-call logging to the listed servers. Without it, `--log` records every keep-alive server’s activity.
+- Environment equivalents:
+  - `MCPORTER_DAEMON_LOG=1` – enable logging.
+  - `MCPORTER_DAEMON_LOG_PATH=/tmp/mcporter-daemon.log` – explicit log file.
+  - `MCPORTER_DAEMON_LOG_SERVERS=chrome-devtools` – only log specified servers.
+- `mcporter daemon status` now prints the socket path and the active log file (if any) so it’s easy to tail.
+- Per-server opt-in: add `"logging": { "daemon": { "enabled": true } }` next to `"lifecycle": "keep-alive"` in a server definition to force detailed call logging for that server (handy when only one or two STDIO transports are noisy). Combined with `--log`/`MCPORTER_DAEMON_LOG`, those entries always emit call start/end/error lines.
+
+Logs include timestamped entries such as:
+
+```
+[daemon] 2025-11-10T15:08:21.123Z callTool start server=chrome-devtools tool=take_snapshot
+[daemon] 2025-11-10T15:08:22.004Z callTool success server=chrome-devtools tool=take_snapshot
+```
+
+Tailing the file (`tail -f ~/.mcporter/daemon/daemon-*.log`) surfaces crashes or repeated failures without needing to re-run the daemon in the foreground.
+
 Once these steps land, agents can freely use persistent MCP servers without juggling multiple Chrome launches, while still retaining an explicit shutdown path.

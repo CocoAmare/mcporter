@@ -6,6 +6,7 @@ export interface DaemonLaunchOptions {
   readonly rootDir?: string;
   readonly socketPath: string;
   readonly metadataPath: string;
+  readonly extraArgs?: string[];
 }
 
 export function launchDaemonDetached(options: DaemonLaunchOptions): void {
@@ -19,6 +20,7 @@ export function launchDaemonDetached(options: DaemonLaunchOptions): void {
     'daemon',
     'start',
     '--foreground',
+    ...(options.extraArgs ?? []),
   ];
   const child = spawn(process.execPath, args, {
     detached: true,

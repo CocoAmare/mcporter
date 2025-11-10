@@ -3,7 +3,9 @@
 ## [Unreleased]
 
 ### CLI & runtime
-- _Nothing yet._
+- Added a per-login daemon that auto-starts when keep-alive MCP servers (e.g., Chrome DevTools, Mobile MCP, Playwright) are invoked. The daemon keeps STDIO transports alive across agents, exposes `mcporter daemon <start|status|stop>`, and supports idle shutdown plus manual restarts.
+- Keep-alive detection now honors the `lifecycle` config flag/env overrides and also inspects STDIO command signatures, so renaming `chrome-devtools` (or other stateful servers) no longer disables the daemon accidentally.
+- Introduced daemon logging controls (`mcporter daemon start --log|--log-file`, `--log-servers`, `MCPORTER_DAEMON_LOG*` env vars, and per-server `logging.daemon.enabled`). `mcporter daemon status` reports the active log path, and a new `tests/daemon.integration.test.ts` suite keeps the end-to-end flow covered.
 
 ## [0.5.0] - 2025-11-10
 

@@ -33,6 +33,16 @@ const RawLifecycleSchema = z.union([
 
 export type RawLifecycle = z.infer<typeof RawLifecycleSchema>;
 
+const RawLoggingSchema = z
+  .object({
+    daemon: z
+      .object({
+        enabled: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .optional();
+
 export const RawEntrySchema = z.object({
   description: z.string().optional(),
   baseUrl: z.string().optional(),
@@ -57,6 +67,7 @@ export const RawEntrySchema = z.object({
   bearerTokenEnv: z.string().optional(),
   bearer_token_env: z.string().optional(),
   lifecycle: RawLifecycleSchema.optional(),
+  logging: RawLoggingSchema,
 });
 
 export const RawConfigSchema = z.object({
@@ -96,6 +107,12 @@ export type ServerLifecycle =
       mode: 'ephemeral';
     };
 
+export interface ServerLoggingOptions {
+  readonly daemon?: {
+    readonly enabled?: boolean;
+  };
+}
+
 export interface ServerDefinition {
   readonly name: string;
   readonly description?: string;
@@ -107,6 +124,7 @@ export interface ServerDefinition {
   readonly oauthRedirectUrl?: string;
   readonly source?: ServerSource;
   readonly lifecycle?: ServerLifecycle;
+  readonly logging?: ServerLoggingOptions;
 }
 
 export interface LoadConfigOptions {

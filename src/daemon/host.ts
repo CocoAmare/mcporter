@@ -20,6 +20,8 @@ interface DaemonHostOptions {
   readonly configPath: string;
   readonly rootDir?: string;
   readonly logPath?: string;
+  readonly logServers?: Set<string>;
+  readonly logAllServers?: boolean;
 }
 
 interface ServerActivity {
@@ -40,6 +42,21 @@ export async function runDaemonHost(options: DaemonHostOptions): Promise<void> {
   for (const definition of keepAliveDefinitions) {
     managedServers.set(definition.name, definition);
   }
+  const serverLoggingOverrides = new Set<string>();
+  for (const definition of keepAliveDefinitions) {
+    if (definition.logging?.daemon?.enabled) {
+      serverLoggingOverrides.add(definition.name);
+    }
+  }
+  const combinedServerLogs = new Set<string>([
+    ...serverLoggingOverrides,
+    ...(options.logServers ? Array.from(options.logServers) : []),
+  ]);
+  const logContext = createLogContext({
+    enabled: Boolean(options.logPath),
+    logAllServers: options.logAllServers ?? false,
+    servers: combinedServerLogs,
+  });
 
   await prepareSocket(options.socketPath);
   await fs.mkdir(path.dirname(options.metadataPath), { recursive: true });
@@ -53,6 +70,8 @@ export async function runDaemonHost(options: DaemonHostOptions): Promise<void> {
     void evictIdleServers(runtime, managedServers, activity);
   }, 30_000);
   idleWatcher.unref();
+
+  logEvent(logContext, 'Daemon host started.');
 
   const startedAt = Date.now();
   const server = net.createServer({ allowHalfOpen: true }, (socket) => {
@@ -72,7 +91,9 @@ export async function runDaemonHost(options: DaemonHostOptions): Promise<void> {
           configPath: options.configPath,
           socketPath: options.socketPath,
           startedAt,
+          logPath: options.logPath ?? null,
         },
+        logContext,
         shutdown
       );
     });
@@ -97,6 +118,7 @@ export async function runDaemonHost(options: DaemonHostOptions): Promise<void> {
         socketPath: options.socketPath,
         configPath: options.configPath,
         startedAt: Date.now(),
+        logPath: options.logPath ?? null,
       },
       null,
       2
@@ -110,6 +132,7 @@ export async function runDaemonHost(options: DaemonHostOptions): Promise<void> {
       return;
     }
     shuttingDown = true;
+    logEvent(logContext, 'Shutting down daemon host.');
     clearInterval(idleWatcher);
     server.close();
     await runtime.close().catch(() => {});
@@ -157,10 +180,18 @@ async function handleSocketRequest(
   runtime: Runtime,
   managedServers: Map<string, ServerDefinition>,
   activity: Map<string, ServerActivity>,
-  metadata: { configPath: string; socketPath: string; startedAt: number },
+  metadata: { configPath: string; socketPath: string; startedAt: number; logPath: string | null },
+  logContext: LogContext,
   shutdown: () => Promise<void>
 ): Promise<void> {
-  const { response, shouldShutdown } = await processRequest(rawPayload, runtime, managedServers, activity, metadata);
+  const { response, shouldShutdown } = await processRequest(
+    rawPayload,
+    runtime,
+    managedServers,
+    activity,
+    metadata,
+    logContext
+  );
   socket.write(JSON.stringify(response), () => {
     socket.end(() => {
       if (shouldShutdown) {
@@ -175,7 +206,8 @@ async function processRequest(
   runtime: Runtime,
   managedServers: Map<string, ServerDefinition>,
   activity: Map<string, ServerActivity>,
-  metadata: { configPath: string; socketPath: string; startedAt: number }
+  metadata: { configPath: string; socketPath: string; startedAt: number; logPath: string | null },
+  logContext: LogContext
 ): Promise<{ response: DaemonResponse; shouldShutdown: boolean }> {
   const trimmed = rawPayload.trim();
   if (!trimmed) {
@@ -193,33 +225,93 @@ async function processRequest(
       case 'callTool': {
         const params = request.params as CallToolParams;
         ensureManaged(params.server, managedServers);
-        const result = await runtime.callTool(params.server, params.tool, { args: params.args ?? {} });
-        markActivity(params.server, activity);
-        return { response: { id, ok: true, result }, shouldShutdown: false };
+        const loggable = shouldLogServer(logContext, params.server);
+        if (loggable) {
+          logEvent(logContext, `callTool start server=${params.server} tool=${params.tool}`);
+        }
+        try {
+          const result = await runtime.callTool(params.server, params.tool, { args: params.args ?? {} });
+          markActivity(params.server, activity);
+          if (loggable) {
+            logEvent(logContext, `callTool success server=${params.server} tool=${params.tool}`);
+          }
+          return { response: { id, ok: true, result }, shouldShutdown: false };
+        } catch (error) {
+          if (loggable) {
+            const detail = formatError(error);
+            logEvent(logContext, `callTool error server=${params.server} tool=${params.tool} err=${detail}`);
+          }
+          throw error;
+        }
       }
       case 'listTools': {
         const params = request.params as ListToolsParams;
         ensureManaged(params.server, managedServers);
-        const result = await runtime.listTools(params.server, {
-          includeSchema: params.includeSchema,
-          autoAuthorize: params.autoAuthorize,
-        });
-        markActivity(params.server, activity);
-        return { response: { id, ok: true, result }, shouldShutdown: false };
+        const loggable = shouldLogServer(logContext, params.server);
+        if (loggable) {
+          logEvent(logContext, `listTools start server=${params.server}`);
+        }
+        try {
+          const result = await runtime.listTools(params.server, {
+            includeSchema: params.includeSchema,
+            autoAuthorize: params.autoAuthorize,
+          });
+          markActivity(params.server, activity);
+          if (loggable) {
+            logEvent(logContext, `listTools success server=${params.server}`);
+          }
+          return { response: { id, ok: true, result }, shouldShutdown: false };
+        } catch (error) {
+          if (loggable) {
+            const detail = formatError(error);
+            logEvent(logContext, `listTools error server=${params.server} err=${detail}`);
+          }
+          throw error;
+        }
       }
       case 'listResources': {
         const params = request.params as ListResourcesParams;
         ensureManaged(params.server, managedServers);
-        const result = await runtime.listResources(params.server, params.params);
-        markActivity(params.server, activity);
-        return { response: { id, ok: true, result }, shouldShutdown: false };
+        const loggable = shouldLogServer(logContext, params.server);
+        if (loggable) {
+          logEvent(logContext, `listResources start server=${params.server}`);
+        }
+        try {
+          const result = await runtime.listResources(params.server, params.params);
+          markActivity(params.server, activity);
+          if (loggable) {
+            logEvent(logContext, `listResources success server=${params.server}`);
+          }
+          return { response: { id, ok: true, result }, shouldShutdown: false };
+        } catch (error) {
+          if (loggable) {
+            const detail = formatError(error);
+            logEvent(logContext, `listResources error server=${params.server} err=${detail}`);
+          }
+          throw error;
+        }
       }
       case 'closeServer': {
         const params = request.params as CloseServerParams;
         ensureManaged(params.server, managedServers);
-        await runtime.close(params.server);
-        activity.set(params.server, { connected: false });
-        return { response: { id, ok: true, result: true }, shouldShutdown: false };
+        const loggable = shouldLogServer(logContext, params.server);
+        if (loggable) {
+          logEvent(logContext, `closeServer start server=${params.server}`);
+        }
+        try {
+          await runtime.close(params.server);
+          activity.set(params.server, { connected: false });
+          if (loggable) {
+            logEvent(logContext, `closeServer success server=${params.server}`);
+          }
+          return { response: { id, ok: true, result: true }, shouldShutdown: false };
+        } catch (error) {
+          if (loggable) {
+            const detail = formatError(error);
+            logEvent(logContext, `closeServer error server=${params.server} err=${detail}`);
+          }
+          throw error;
+        }
       }
       case 'status': {
         const result: StatusResult = {
@@ -227,6 +319,7 @@ async function processRequest(
           startedAt: metadata.startedAt,
           configPath: metadata.configPath,
           socketPath: metadata.socketPath,
+          logPath: metadata.logPath ?? undefined,
           servers: Array.from(managedServers.values()).map((def) => {
             const entry = activity.get(def.name);
             return {
@@ -239,6 +332,7 @@ async function processRequest(
         return { response: { id, ok: true, result }, shouldShutdown: false };
       }
       case 'stop': {
+        logEvent(logContext, 'Received stop request.');
         return { response: { id, ok: true, result: true }, shouldShutdown: true };
       }
       default:
@@ -305,4 +399,46 @@ function buildErrorResponse(id: string, code: string, error?: unknown): DaemonRe
       message,
     },
   };
+}
+
+interface LogContext {
+  enabled: boolean;
+  logAllServers: boolean;
+  servers: Set<string>;
+}
+
+function createLogContext(options: { enabled: boolean; logAllServers: boolean; servers: Set<string> }): LogContext {
+  const derivedEnabled = options.enabled || options.logAllServers || options.servers.size > 0;
+  return {
+    enabled: derivedEnabled,
+    logAllServers: options.logAllServers,
+    servers: options.servers,
+  };
+}
+
+function logEvent(context: LogContext, message: string): void {
+  if (!context.enabled) {
+    return;
+  }
+  console.log(`[daemon] ${new Date().toISOString()} ${message}`);
+}
+
+function shouldLogServer(context: LogContext, server: string): boolean {
+  if (!context.enabled) {
+    return false;
+  }
+  if (context.logAllServers) {
+    return true;
+  }
+  return context.servers.has(server);
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'unknown';
 }

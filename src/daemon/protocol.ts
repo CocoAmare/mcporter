@@ -42,6 +42,7 @@ export interface StatusResult {
   readonly startedAt: number;
   readonly configPath: string;
   readonly socketPath: string;
+  readonly logPath?: string;
   readonly servers: Array<{
     readonly name: string;
     readonly connected: boolean;

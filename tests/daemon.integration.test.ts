@@ -29,13 +29,17 @@ async function ensureDistBuilt(): Promise<void> {
   }
 }
 
-async function runCli(args: string[], configPath: string): Promise<{ stdout: string; stderr: string }> {
+async function runCli(
+  args: string[],
+  configPath: string,
+  envOverrides: Record<string, string> = {}
+): Promise<{ stdout: string; stderr: string }> {
   return await new Promise((resolve, reject) => {
     execFile(
       process.execPath,
       [CLI_ENTRY, '--config', configPath, ...args],
       {
-        env: { ...process.env, MCPORTER_NO_FORCE_EXIT: '1' },
+        env: { ...process.env, MCPORTER_NO_FORCE_EXIT: '1', ...envOverrides },
       },
       (error, stdout, stderr) => {
         if (error) {
@@ -118,7 +122,13 @@ await new Promise((resolve) => {
       'utf8'
     );
 
-    const cli = (args: string[]) => runCli(args, configPath);
+    const logPath = path.join(tempDir, 'daemon.log');
+    const cliEnv = {
+      MCPORTER_DAEMON_LOG: '1',
+      MCPORTER_DAEMON_LOG_PATH: logPath,
+      MCPORTER_DAEMON_LOG_SERVERS: 'daemon-e2e',
+    };
+    const cli = (args: string[]) => runCli(args, configPath, cliEnv);
 
     try {
       await cli(['daemon', 'stop']);
@@ -131,6 +141,10 @@ await new Promise((resolve) => {
       const secondResult = parseCliJson(second.stdout);
       expect(secondResult.count).toBe(2);
       expect(secondResult.instanceId).toBe(firstResult.instanceId);
+
+      const logContents = await fs.readFile(logPath, 'utf8');
+      expect(logContents).toContain('callTool start server=daemon-e2e tool=next_value');
+      expect(logContents).toContain('callTool success server=daemon-e2e tool=next_value');
     } finally {
       await cli(['daemon', 'stop']).catch(() => {});
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});

@@ -206,7 +206,8 @@ function normalizeLogging(raw?: { daemon?: { enabled?: boolean } }): ServerLoggi
     return undefined;
   }
   if (raw.daemon) {
-    return { daemon: { enabled: raw.daemon.enabled } } satisfies ServerLoggingOptions;
+    const logging: ServerLoggingOptions = { daemon: { enabled: raw.daemon.enabled } };
+    return logging;
   }
   return undefined;
 }
