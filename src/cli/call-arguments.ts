@@ -142,6 +142,8 @@ export function parseCallArguments(args: string[]): CallArgsParseResult {
     shouldPromoteSelectorToCommand(result.selector) &&
     !result.ephemeral?.stdioCommand
   ) {
+    // Treat the first positional token as an ad-hoc stdio command when it looks like
+    // `npx ...`/`./script`/etc., so users can skip `--stdio` entirely.
     result.ephemeral = { ...result.ephemeral, stdioCommand: result.selector };
     result.selector = undefined;
   }
