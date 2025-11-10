@@ -252,9 +252,12 @@ function addEntriesFromContainer(container: Record<string, unknown>, target: Map
   }
 }
 
-function resolveContainerDescriptor(
-  importKind: ImportKind | undefined
-): { allowMcpServers: boolean; allowServers: boolean; allowMcp: boolean; allowRootFallback: boolean } {
+function resolveContainerDescriptor(importKind: ImportKind | undefined): {
+  allowMcpServers: boolean;
+  allowServers: boolean;
+  allowMcp: boolean;
+  allowRootFallback: boolean;
+} {
   if (importKind === 'opencode') {
     return {
       allowMcpServers: false,
