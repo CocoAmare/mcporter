@@ -1,6 +1,6 @@
 {
   "name": "mcporter",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "TypeScript runtime and CLI for connecting to configured Model Context Protocol servers.",
   "type": "module",
   "main": "dist/index.js",
@@ -28,7 +28,9 @@
     "lint:biome": "biome check",
     "lint:oxlint": "oxlint --type-aware --tsconfig tsconfig.json --max-warnings=0",
     "typecheck": "tsgo --project tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "MCPORTER_TEST_REPORTER=quiet pnpm test:verbose",
+    "test:quiet": "MCPORTER_TEST_REPORTER=quiet pnpm test:verbose",
+    "test:verbose": "vitest run",
     "clean": "rimraf dist",
     "dev": "tsc -w -p tsconfig.build.json",
     "prepublishOnly": "pnpm check && pnpm test && pnpm build",

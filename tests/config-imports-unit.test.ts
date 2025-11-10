@@ -118,10 +118,10 @@ describe('config import helpers', () => {
     process.env.XDG_CONFIG_HOME = path.join(os.tmpdir(), 'xdg-home');
     homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue('/fake/home');
     const rootDir = '/repo/project';
-    const [projectPath, userPath] = pathsForImport('cursor', rootDir);
-    expect(projectPath).toBe(path.resolve(rootDir, '.cursor', 'mcp.json'));
-    expect(userPath).toBeDefined();
-    expect(userPath?.includes('Cursor')).toBe(true);
-    expect(userPath?.endsWith(path.join('Cursor', 'mcp.json'))).toBe(true);
+    const paths = pathsForImport('cursor', rootDir);
+    expect(paths[0]).toBe(path.resolve(rootDir, '.cursor', 'mcp.json'));
+    expect(paths).toContain(path.join('/fake/home', '.cursor', 'mcp.json'));
+    const cursorUserSuffix = path.join('Cursor', 'User', 'mcp.json');
+    expect(paths.some((candidate) => candidate.endsWith(cursorUserSuffix))).toBe(true);
   });
 });

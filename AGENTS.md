@@ -11,7 +11,9 @@ If you are unsure about sth, just google it.
 ## Build, Test, and Development Commands
 - `pnpm build`: Emits compiled JS and type declarations via `tsc -p tsconfig.build.json`.
 - `pnpm lint`: Runs Biome style checks, Oxlint+tsgolint rules, and a `tsgo --noEmit` type pass.
-- `pnpm test`: Executes the full Vitest suite once.
+- `pnpm test`: Default test target (quiet reporters + suppressed stdout for passing tests) so CLI fixture logs don’t take over the terminal.
+- `pnpm test:quiet`: Alias for `pnpm test` when you want to be explicit about the quiet mode.
+- `pnpm test:verbose`: Executes the Vitest suite with the default reporter for full CLI transcripts.
 - `pnpm dev`: Watches and incrementally rebuilds the library with TypeScript.
 - `pnpm clean`: Removes `dist/` so you can verify fresh builds.
 - `pnpm run docs:list`: Lists required rule summaries via `scripts/docs-list.ts`; run this at the start of every session and reopen any referenced doc before writing code.

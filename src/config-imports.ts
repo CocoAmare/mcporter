@@ -10,7 +10,11 @@ import { RawEntrySchema } from './config-schema.js';
 export function pathsForImport(kind: ImportKind, rootDir: string): string[] {
   switch (kind) {
     case 'cursor':
-      return [path.resolve(rootDir, '.cursor', 'mcp.json'), defaultCursorUserConfigPath()];
+      return dedupePaths([
+        path.resolve(rootDir, '.cursor', 'mcp.json'),
+        path.join(os.homedir(), '.cursor', 'mcp.json'),
+        ...defaultCursorUserConfigPaths(),
+      ]);
     case 'claude-code':
       return dedupePaths([
         path.resolve(rootDir, '.claude', 'settings.local.json'),
@@ -26,11 +30,11 @@ export function pathsForImport(kind: ImportKind, rootDir: string): string[] {
     case 'codex':
       return [path.resolve(rootDir, '.codex', 'config.toml'), path.join(os.homedir(), '.codex', 'config.toml')];
     case 'windsurf':
-      return [defaultWindsurfConfigPath()];
+      return defaultWindsurfConfigPaths();
     case 'opencode':
       return opencodeConfigPaths(rootDir);
     case 'vscode':
-      return defaultVscodeConfigPaths();
+      return dedupePaths([path.resolve(rootDir, '.vscode', 'mcp.json'), ...defaultVscodeConfigPaths()]);
     default:
       return [];
   }
@@ -198,16 +202,22 @@ function buildExternalHeaders(record: Record<string, unknown>): Record<string, s
   return Object.keys(headers).length > 0 ? headers : undefined;
 }
 
-function defaultCursorUserConfigPath(): string {
+function defaultCursorUserConfigPaths(): string[] {
+  const paths: string[] = [];
   const xdg = process.env.XDG_CONFIG_HOME;
-  if (xdg) {
-    return path.join(xdg, 'Cursor', 'mcp.json');
+  paths.push(path.join(os.homedir(), '.cursor', 'mcp.json'));
+  if (xdg && xdg.length > 0) {
+    paths.push(path.join(xdg, 'Cursor', 'User', 'mcp.json'));
   }
-  if (process.platform === 'win32') {
+  if (process.platform === 'darwin') {
+    paths.push(path.join(os.homedir(), 'Library', 'Application Support', 'Cursor', 'User', 'mcp.json'));
+  } else if (process.platform === 'win32') {
     const appData = process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming');
-    return path.join(appData, 'Cursor', 'User', 'mcp.json');
+    paths.push(path.join(appData, 'Cursor', 'User', 'mcp.json'));
+  } else {
+    paths.push(path.join(os.homedir(), '.config', 'Cursor', 'User', 'mcp.json'));
   }
-  return path.join(os.homedir(), '.config', 'Cursor', 'User', 'mcp.json');
+  return dedupePaths(paths);
 }
 
 function defaultClaudeDesktopConfigPath(): string {
@@ -221,12 +231,19 @@ function defaultClaudeDesktopConfigPath(): string {
   return path.join(os.homedir(), '.config', 'Claude', 'claude_desktop_config.json');
 }
 
-function defaultWindsurfConfigPath(): string {
+function defaultWindsurfConfigPaths(): string[] {
+  const homeDir = os.homedir();
+  const paths = [
+    path.join(homeDir, '.codeium', 'windsurf', 'mcp_config.json'),
+    path.join(homeDir, '.codeium', 'windsurf-next', 'mcp_config.json'),
+    path.join(homeDir, '.windsurf', 'mcp_config.json'),
+    path.join(homeDir, '.config', '.codeium', 'windsurf', 'mcp_config.json'),
+  ];
   if (process.platform === 'win32') {
-    const appData = process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming');
-    return path.join(appData, 'Codeium', 'windsurf', 'mcp_config.json');
+    const appData = process.env.APPDATA ?? path.join(homeDir, 'AppData', 'Roaming');
+    paths.push(path.join(appData, 'Codeium', 'windsurf', 'mcp_config.json'));
   }
-  return path.join(os.homedir(), '.codeium', 'windsurf', 'mcp_config.json');
+  return dedupePaths(paths);
 }
 
 function opencodeConfigPaths(rootDir: string): string[] {

@@ -12,7 +12,7 @@ const packageRoot = fileURLToPath(new URL('../../..', import.meta.url));
 // Generated CLIs import commander/mcporter, but end-users run mcporter from directories
 // that often lack node_modules. Pre-resolve those deps to this package so bundling works
 // even in empty temp dirs (fixes #1).
-const BUNDLED_DEPENDENCIES = ['commander', 'mcporter'] as const;
+const BUNDLED_DEPENDENCIES = ['commander', 'mcporter', 'jsonc-parser'] as const;
 const dependencyAliasPlugin = createLocalDependencyAliasPlugin([...BUNDLED_DEPENDENCIES]);
 
 export async function bundleOutput({
@@ -205,6 +205,21 @@ function createLocalDependencyAliasPlugin(specifiers: string[]): RolldownPlugin 
 
 function resolveLocalDependency(specifier: string): string | undefined {
   try {
+    if (specifier === 'jsonc-parser') {
+      const pkgJsonPath = localRequire.resolve('jsonc-parser/package.json');
+      const pkgDir = path.dirname(pkgJsonPath);
+      try {
+        const pkg = JSON.parse(fsSync.readFileSync(pkgJsonPath, 'utf8')) as { module?: string };
+        if (pkg.module) {
+          const esmEntry = path.join(pkgDir, pkg.module);
+          if (fsSync.existsSync(esmEntry)) {
+            return esmEntry;
+          }
+        }
+      } catch {
+        // Fall back to Node's resolution below if we can't parse or locate the module entry.
+      }
+    }
     return localRequire.resolve(specifier);
   } catch {
     if (specifier === 'mcporter') {
