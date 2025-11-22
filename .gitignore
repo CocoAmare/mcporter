@@ -3,6 +3,9 @@ node_modules
 dist
 dist-bun
 *.bun-build
+*.tgz
+*.sha1
+*.sha256
 
 # Logs
 npm-debug.log*
