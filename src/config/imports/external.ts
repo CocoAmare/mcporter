@@ -235,7 +235,9 @@ function resolveContainerDescriptor(
   // For claude-code, only allow root fallback for legacy root-style files (.claude.json, .claude/mcp.json).
   // Settings files like .claude/settings.json require proper mcpServers/servers/mcp containers.
   if (importKind === 'claude-code' && filePath) {
-    const allowRootFallback = filePath.endsWith('.claude.json') || filePath.endsWith(`${path.sep}mcp.json`);
+    const normalized = path.normalize(filePath);
+    const allowRootFallback =
+      normalized.endsWith('.claude.json') || normalized.endsWith(`${path.sep}.claude${path.sep}mcp.json`);
     return {
       allowMcpServers: true,
       allowServers: true,
