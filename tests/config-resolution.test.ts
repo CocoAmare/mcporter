@@ -75,4 +75,20 @@ describe('resolveConfigPath', () => {
     expect(resolved.path).toBe(homeConfigPath);
     expect(resolved.explicit).toBe(false);
   });
+
+  it('returns explicit=false when no config exists anywhere (regression for ENOENT bug)', () => {
+    // This test verifies the fix for the bug where mcporter crashed with ENOENT
+    // when run in an environment with no config file at all. The CLI was passing
+    // the resolved (but non-existent) path as if it were explicit.
+    const tempRoot = makeTempDir('mcporter-no-config-anywhere-');
+    const fakeHome = makeTempDir('mcporter-empty-home-');
+    tempDirs.push(tempRoot, fakeHome);
+    // No config files created - completely empty environment
+    homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+
+    const resolved = resolveConfigPath(undefined, tempRoot);
+    // Should return the default project path but marked as NOT explicit
+    expect(resolved.path).toBe(path.join(tempRoot, 'config', 'mcporter.json'));
+    expect(resolved.explicit).toBe(false);
+  });
 });
