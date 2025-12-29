@@ -1,3 +1,9 @@
+---
+summary: 'Opt-in live MCP integration tests that hit real hosted servers (off by default in CI).'
+read_when:
+  - 'Running end-to-end validation against hosted MCP servers'
+---
+
 # Live MCP Tests
 
 These tests hit real hosted MCP servers and require outbound HTTP. They are **off by default** to keep CI and local runs deterministic.
