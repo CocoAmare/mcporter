@@ -472,18 +472,18 @@ describe('mcporter CLI integration', () => {
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }, 20000);
 
-  it('end-to-end: compiles a "ban" CLI and calls ping', async () => {
-    if (!(await ensureBunSupport('BAN CLI end-to-end test'))) {
+  it('end-to-end: compiles a "bun" CLI and calls ping', async () => {
+    if (!(await ensureBunSupport('Bun CLI end-to-end test'))) {
       return;
     }
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcporter-cli-ban-'));
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcporter-cli-bun-'));
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({ name: 'mcporter-ban-e2e', version: '0.0.0' }, null, 2),
+      JSON.stringify({ name: 'mcporter-bun-e2e', version: '0.0.0' }, null, 2),
       'utf8'
     );
 
-    const binaryPath = path.join(tempDir, 'ban');
+    const binaryPath = path.join(tempDir, 'bun');
     await new Promise<void>((resolve, reject) => {
       execFile(
         process.execPath,
@@ -497,7 +497,7 @@ describe('mcporter CLI integration', () => {
           '--compile',
           binaryPath,
           '--name',
-          'ban',
+          'bun',
           '--include-tools',
           'ping',
         ],
@@ -521,7 +521,7 @@ describe('mcporter CLI integration', () => {
         resolve({ stdout, stderr });
       });
     });
-    expect(helpOutput.stdout).toMatch(/Usage: ban <command> \[options]/);
+    expect(helpOutput.stdout).toMatch(/Usage: bun <command> \[options]/);
     expect(helpOutput.stdout).toContain('ping - Simple health check');
     expect(helpOutput.stdout).not.toContain('admin-reset');
 
