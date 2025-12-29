@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.7.3] - 2025-12-29
+
 ### CLI
 - Coerce generated CLI array arguments based on JSON Schema item types (including integer arrays). (Thanks @rawwerks, PR #27)
 - `mcporter generate-cli` supports `--include-tools` / `--exclude-tools` to generate CLIs for a subset of server tools. (Thanks @zackleman, PR #24)
